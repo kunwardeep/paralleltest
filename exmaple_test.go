@@ -29,7 +29,7 @@ func Test_Add(t *testing.T) {
 	for _, tc := range testCases {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+			//t.Parallel()
 			assert.Equal(t, tc.expectedResult, Add(tc.val1, tc.val2))
 		})
 	}

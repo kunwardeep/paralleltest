@@ -1,7 +1,6 @@
 package analyzer
 
 import (
-	"fmt"
 	"go/ast"
 	"strings"
 
@@ -12,8 +11,8 @@ import (
 )
 
 var Analyzer = &analysis.Analyzer{
-	Name:     "goprintffuncname",
-	Doc:      "Checks that printf-like functions are named with `f` at the end.",
+	Name:     "paralleltest",
+	Doc:      "Checks that tests have t.Parallel enabled",
 	Run:      run,
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 }
@@ -26,83 +25,58 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	inspector.Preorder(nodeFilter, func(node ast.Node) {
 		funcDecl := node.(*ast.FuncDecl)
+		funcHasParallelMethod := false
+		rangeStatementExists := false
+		rangeHasParallelMethod := false
 
 		// TODO : Only run for test files
 		if strings.HasPrefix(funcDecl.Name.Name, "Test_") {
-			fmt.Println(funcDecl.Name.Name)
-			//funcName := extractFuncCallInFunc(funcDecl.Body.List)
 			for _, l := range funcDecl.Body.List {
-
 				switch v := l.(type) {
+
 				case *ast.ExprStmt:
+					ast.Inspect(v, func(n ast.Node) bool {
+						if funcHasParallelMethod == false {
+							funcHasParallelMethod = callExprCallsMethodParallel(n)
+						}
+						return true
+					})
 
-					expressionStatementHasParallel := doesItHaveParallelMethod(v)
-					fmt.Println("expressionStatementHasParallel", expressionStatementHasParallel)
 				case *ast.RangeStmt:
+					// TODO: Check range statements is over testcases
+
+					rangeStatementExists= true
 					// TODO: Also check for the assignment tc:tc
-
-					rangeStatementHasParallel := doesItHaveParallelMethod(v)
-					fmt.Println("rangeStatementHasParallel", rangeStatementHasParallel)
-
-					//funcName := extractFuncCallFromRangeStmt(v)
-					//fmt.Println("RangeStmt",funcName)
+					ast.Inspect(v, func(n ast.Node) bool {
+						if rangeHasParallelMethod == false {
+							rangeHasParallelMethod = callExprCallsMethodParallel(n)
+						}
+						return true
+					})
 				}
 			}
-			return
+
+			if !funcHasParallelMethod {
+				pass.Reportf(node.Pos(), "Function %s missing the call to method parallel \n", funcDecl.Name.Name)
+			}
+			if rangeStatementExists && !rangeHasParallelMethod {
+				pass.Reportf(node.Pos(), "Range statement %s missing the call to method parallel \n", funcDecl.Name.Name)
+			}
 		}
-		//pass.Reportf(node.Pos(), "printf-like formatting function '%s' should be named '%sf'",
-		//	funcDecl.Name.Name, funcDecl.Name.Name)
 	})
 
 	return nil, nil
 }
 
-func extractFuncCallFromExprStmt(stmt ast.Stmt) string {
-	if exprStmt, ok := stmt.(*ast.ExprStmt); ok {
-		if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-			if fun, ok := call.Fun.(*ast.SelectorExpr); ok {
-				return fun.Sel.Name
-			}
-		}
-	}
-	return ""
-}
-
-func checkParallelMethod(stmt ast.Stmt)  {
-	ast.Inspect(stmt, isParallelCalled)
-}
-
-func isParallelCalled(node ast.Node) bool {
+func callExprCallsMethodParallel(node ast.Node) bool {
 	methodName := "Parallel"
 
 	switch n := node.(type) {
+	default:
 	case *ast.CallExpr:
 		if fun, ok := n.Fun.(*ast.SelectorExpr); ok {
-			return fun.Sel.Name == methodName // prints every func call expression
+			return fun.Sel.Name == methodName
 		}
 	}
 	return false
 }
-
-//func extractFuncCallFromRangeStmt(stmt ast.Stmt) string {
-//	if blockStmt, ok := stmt.(*ast.BlockStmt); ok {
-//		for _,blkStmt := range blockStmt.List{
-//			if exprStmt, ok := blkStmt.(*ast.ExprStmt); ok {
-//				if call, ok := exprStmt.X.(*ast.CallExpr); ok {
-//					for _, arg := range call.Args{
-//						if funcLit, ok := arg.(*ast.FuncLit); ok {
-//							if bb, ok := funcLit.Body.(*ast.BlockStmt); ok {
-//							}
-//
-//						}
-//					}
-//				}
-//				//if fun, ok := call.Fun.(*ast.SelectorExpr); ok {
-//				//	return fun.Sel.Name
-//				//}
-//			}
-//		}
-//
-//	}
-//	return ""
-//}

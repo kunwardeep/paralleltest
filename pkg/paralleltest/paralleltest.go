@@ -1,4 +1,4 @@
-package analyzer
+package paralleltest
 
 import (
 	"fmt"
@@ -6,17 +6,22 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
+	"strings"
 )
 
-var Analyzer = &analysis.Analyzer{
-	Name:     "paralleltest",
-	Doc:      "Checks that tests have t.Parallel enabled",
-	Run:      run,
-	Requires: []*analysis.Analyzer{inspect.Analyzer},
+// TODO add ignoring ability flag
+func NewAnalyzer() *analysis.Analyzer {
+	return &analysis.Analyzer{
+		Name:     "paralleltest",
+		Doc:      "Checks that tests have t.Parallel enabled",
+		Run:      run,
+		Requires: []*analysis.Analyzer{inspect.Analyzer},
+	}
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	inspector := pass.ResultOf[inspect.Analyzer].(*inspector.Inspector)
+	// Run only for test files
+	inspector := inspector.New(getTestFiles(pass))
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -28,7 +33,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		rangeStatementExists := false
 		rangeHasParallelMethod := false
 
-		// TODO : Only run for test files
+		// Check runs for test functions only
 		if !isItATestFunction(funcDecl) {
 			return
 		}
@@ -36,6 +41,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		for _, l := range funcDecl.Body.List {
 			switch v := l.(type) {
 
+			// Check if the test method is calling t.parallel
 			case *ast.ExprStmt:
 				ast.Inspect(v, func(n ast.Node) bool {
 					if funcHasParallelMethod == false {
@@ -45,6 +51,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				})
 
 			case *ast.RangeStmt:
+				// Check if the range over testcases is calling t.parallel
 				// TODO: Check range statements is over testcases and not any other ranges
 
 				rangeStatementExists = true
@@ -68,6 +75,19 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	})
 
 	return nil, nil
+}
+
+func getTestFiles(pass *analysis.Pass) []*ast.File {
+	testFileSuffix := "_test.go"
+
+	var testFiles []*ast.File
+	for _, f := range pass.Files {
+		fileName := pass.Fset.Position(f.Pos()).Filename
+		if strings.HasSuffix(fileName,testFileSuffix ) {
+			testFiles = append(testFiles, f)
+		}
+	}
+	return testFiles
 }
 
 func callExprCallsMethodParallel(node ast.Node) bool {

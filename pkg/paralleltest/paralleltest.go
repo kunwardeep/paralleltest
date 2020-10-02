@@ -13,7 +13,7 @@ import (
 func NewAnalyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name:     "paralleltest",
-		Doc:      "Checks that tests have t.Parallel enabled",
+		Doc:      "Checks that tests have t.Parallel enabled and that range loop variable is reinitialised",
 		Run:      run,
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	}
@@ -21,7 +21,7 @@ func NewAnalyzer() *analysis.Analyzer {
 
 func run(pass *analysis.Pass) (interface{}, error) {
 	// Run only for test files
-	inspector := inspector.New(getTestFiles(pass))
+	inspector := inspector.New(testFiles(pass))
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -39,7 +39,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		var rangeNode ast.Node
 
 		// Check runs for test functions only
-		if !isItATestFunction(funcDecl) {
+		if !testFunction(funcDecl) {
 			return
 		}
 
@@ -82,7 +82,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 						rangeValueIdentifier = i.Name
 					}
 
-					testLoopVariableReinitialised = testCaseLoopVariableReinitialised(v.Body.List,rangeValueIdentifier, testRunLoopIdentifier)
+					testLoopVariableReinitialised = testCaseLoopVariableReinitialised(v.Body.List, rangeValueIdentifier, testRunLoopIdentifier)
 
 				}
 			}
@@ -92,7 +92,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel \n", funcDecl.Name.Name)
 		}
 
-		if rangeStatementOverTestCasesExists {
+		if rangeStatementOverTestCasesExists && rangeNode != nil {
 			if !rangeStatementHasParallelMethod {
 				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel \n", funcDecl.Name.Name)
 			}
@@ -109,7 +109,7 @@ func testCaseLoopVariableReinitialised(statements []ast.Stmt, rangeValueIdentifi
 	if len(statements) > 1 {
 		for _, s := range statements {
 			leftIdentifier, rightIdentifier := getLeftAndRightIdentifier(s)
-			if leftIdentifier == testRunLoopIdentifier && rightIdentifier == rangeValueIdentifier  {
+			if leftIdentifier == testRunLoopIdentifier && rightIdentifier == rangeValueIdentifier {
 				return true
 			}
 		}
@@ -117,7 +117,7 @@ func testCaseLoopVariableReinitialised(statements []ast.Stmt, rangeValueIdentifi
 	return false
 }
 
-// Return the left hand side and the right hand side string identifiers
+// Return the left hand side and the right hand side identifiers name
 func getLeftAndRightIdentifier(s ast.Stmt) (string, string) {
 	var leftIdentifier, rightIdentifier string
 	switch v := s.(type) {
@@ -136,7 +136,7 @@ func getLeftAndRightIdentifier(s ast.Stmt) (string, string) {
 	return leftIdentifier, rightIdentifier
 }
 
-func getTestFiles(pass *analysis.Pass) []*ast.File {
+func testFiles(pass *analysis.Pass) []*ast.File {
 	testFileSuffix := "_test.go"
 
 	var testFiles []*ast.File
@@ -169,18 +169,18 @@ func methodParallelIsCalledInMethodRun(node ast.Node) bool {
 }
 
 func methodParallelIsCalledInRunMethod(node ast.Node) bool {
-	return checkIfExprCallHasMethod(node, "Parallel")
+	return exprCallHasMethod(node, "Parallel")
 }
 
 func methodParallelIsCalledInTestFunction(node ast.Node) bool {
-	return checkIfExprCallHasMethod(node, "Parallel")
+	return exprCallHasMethod(node, "Parallel")
 }
 
 func methodRunIsCalledInRangeStatement(node ast.Node) bool {
-	return checkIfExprCallHasMethod(node, "Run")
+	return exprCallHasMethod(node, "Run")
 }
 
-func checkIfExprCallHasMethod(node ast.Node, methodName string) bool {
+func exprCallHasMethod(node ast.Node, methodName string) bool {
 	switch n := node.(type) {
 	case *ast.CallExpr:
 		if fun, ok := n.Fun.(*ast.SelectorExpr); ok {
@@ -204,7 +204,7 @@ func methodRunFirstArgumentObjectName(node ast.Node) string {
 	return ""
 }
 
-func isItATestFunction(funcDecl *ast.FuncDecl) bool {
+func testFunction(funcDecl *ast.FuncDecl) bool {
 	testMethodParamName := "t"
 	testMethodPackageType := "testing"
 	testMethodStruct := "T"

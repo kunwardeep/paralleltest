@@ -1,7 +1,6 @@
 package paralleltest
 
 import (
-	"fmt"
 	"go/ast"
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
@@ -39,7 +38,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		var rangeNode ast.Node
 
 		// Check runs for test functions only
-		if !testFunction(funcDecl) {
+		if !isTestFunction(funcDecl) {
 			return
 		}
 
@@ -190,6 +189,7 @@ func exprCallHasMethod(node ast.Node, methodName string) bool {
 	return false
 }
 
+// Gets the object name `tc` from method t.Run(tc.Foo, func(t *testing.T)
 func methodRunFirstArgumentObjectName(node ast.Node) string {
 	switch n := node.(type) {
 	case *ast.CallExpr:
@@ -204,26 +204,26 @@ func methodRunFirstArgumentObjectName(node ast.Node) string {
 	return ""
 }
 
-func testFunction(funcDecl *ast.FuncDecl) bool {
-	testMethodParamName := "t"
+// Checks if the function has the param type *testing.T)
+func isTestFunction(funcDecl *ast.FuncDecl) bool {
 	testMethodPackageType := "testing"
 	testMethodStruct := "T"
 
-	if funcDecl.Type.Params != nil {
-		if len(funcDecl.Type.Params.List) > 1 {
-			return false
-		}
+	if funcDecl.Type.Params != nil && len(funcDecl.Type.Params.List) != 1 {
+		return false
+	}
 
-		for _, param := range funcDecl.Type.Params.List {
-			if param.Names[0].String() == testMethodParamName {
-				if starExp, ok := param.Type.(*ast.StarExpr); ok {
-					if selectExpr, ok := starExp.X.(*ast.SelectorExpr); ok {
-						return fmt.Sprint(selectExpr.X) == testMethodPackageType &&
-							fmt.Sprint(selectExpr.Sel) == testMethodStruct
-					}
-				}
+	param := funcDecl.Type.Params.List[0]
+	if starExp, ok := param.Type.(*ast.StarExpr); ok {
+		if selectExpr, ok := starExp.X.(*ast.SelectorExpr); ok {
+			if selectExpr.Sel.Name != testMethodStruct{
+				return false
+			}
+			if s, ok := selectExpr.X.(*ast.Ident); ok {
+				return s.Name == testMethodPackageType
 			}
 		}
 	}
+
 	return false
 }

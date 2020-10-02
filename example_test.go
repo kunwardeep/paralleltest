@@ -43,8 +43,8 @@ func Test_Add(t *testing.T) {
 	}
 }
 
-func Test_Add2(t *testing.T) {
-	t.Parallel()
+func Test_Add2(p *testing.T) {
+	p.Parallel()
 
 	testCases := []struct {
 		name           string
@@ -66,7 +66,11 @@ func Test_Add2(t *testing.T) {
 		},
 	}
 
-	t.Run(testCases[0].name, func(t *testing.T) {
+	p.Run(testCases[0].name, func(t *testing.T) {
 		assert.Equal(t, testCases[0].expectedResult, Add(testCases[0].val1, testCases[0].val2))
+	})
+
+	p.Run(testCases[1].name, func(t *testing.T) {
+		assert.Equal(t, testCases[1].expectedResult, Add(testCases[1].val1, testCases[1].val2))
 	})
 }

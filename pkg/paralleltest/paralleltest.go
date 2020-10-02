@@ -29,9 +29,13 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 	inspector.Preorder(nodeFilter, func(node ast.Node) {
 		funcDecl := node.(*ast.FuncDecl)
-		funcHasParallelMethod := false
-		rangeStatementOverTestCasesExists := false
-		rangeStatementHasParallelMethod := false
+		var funcHasParallelMethod,
+			rangeStatementOverTestCasesExists,
+			rangeStatementHasParallelMethod,
+
+			testLoopVariableReinitialised bool
+		var testRunLoopIdentifier string
+
 		var rangeNode ast.Node
 
 		// Check runs for test functions only
@@ -45,41 +49,91 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// Check if the test method is calling t.parallel
 			case *ast.ExprStmt:
 				ast.Inspect(v, func(n ast.Node) bool {
-					if !funcHasParallelMethod  {
+					if !funcHasParallelMethod {
 						funcHasParallelMethod = methodParallelIsCalledInTestFunction(n)
 					}
 					return true
 				})
+
 			// Check if the range over testcases is calling t.parallel
 			case *ast.RangeStmt:
 				rangeNode = v
 
-				// TODO: Also check for the assignment tc:tc
 				ast.Inspect(v, func(n ast.Node) bool {
 					switch r := n.(type) {
 					case *ast.ExprStmt:
-						if  methodRunIsCalledInRange(r.X){
+						if methodRunIsCalledInRangeStatement(r.X) {
 							rangeStatementOverTestCasesExists = true
+							testRunLoopIdentifier = methodRunFirstArgumentObjectName(r.X)
 
-							if !rangeStatementHasParallelMethod{
+							if !rangeStatementHasParallelMethod {
 								rangeStatementHasParallelMethod = methodParallelIsCalledInMethodRun(r.X)
 							}
 						}
 					}
 					return true
 				})
+
+				// Check for the range loop value identifier re assignment
+				// More info here https://gist.github.com/kunwardeep/80c2e9f3d3256c894898bae82d9f75d0
+				if rangeStatementOverTestCasesExists {
+					var rangeValueIdentifier string
+					if i, ok := v.Value.(*ast.Ident); ok {
+						rangeValueIdentifier = i.Name
+					}
+
+					testLoopVariableReinitialised = testCaseLoopVariableReinitialised(v.Body.List,rangeValueIdentifier, testRunLoopIdentifier)
+
+				}
 			}
 		}
 
 		if !funcHasParallelMethod {
 			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel \n", funcDecl.Name.Name)
 		}
-		if rangeStatementOverTestCasesExists && !rangeStatementHasParallelMethod {
-			pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel \n", funcDecl.Name.Name)
+
+		if rangeStatementOverTestCasesExists {
+			if !rangeStatementHasParallelMethod {
+				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel \n", funcDecl.Name.Name)
+			}
+			if !testLoopVariableReinitialised {
+				pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not reinitialise the variable %s  \n", funcDecl.Name.Name, testRunLoopIdentifier)
+			}
 		}
 	})
 
 	return nil, nil
+}
+
+func testCaseLoopVariableReinitialised(statements []ast.Stmt, rangeValueIdentifier string, testRunLoopIdentifier string) bool {
+	if len(statements) > 1 {
+		for _, s := range statements {
+			leftIdentifier, rightIdentifier := getLeftAndRightIdentifier(s)
+			if leftIdentifier == testRunLoopIdentifier && rightIdentifier == rangeValueIdentifier  {
+				return true
+			}
+		}
+	}
+	return false
+}
+
+// Return the left hand side and the right hand side string identifiers
+func getLeftAndRightIdentifier(s ast.Stmt) (string, string) {
+	var leftIdentifier, rightIdentifier string
+	switch v := s.(type) {
+	case *ast.AssignStmt:
+		if len(v.Rhs) == 1 {
+			if i, ok := v.Rhs[0].(*ast.Ident); ok {
+				rightIdentifier = i.Name
+			}
+		}
+		if len(v.Lhs) == 1 {
+			if i, ok := v.Lhs[0].(*ast.Ident); ok {
+				leftIdentifier = i.Name
+			}
+		}
+	}
+	return leftIdentifier, rightIdentifier
 }
 
 func getTestFiles(pass *analysis.Pass) []*ast.File {
@@ -103,19 +157,18 @@ func methodParallelIsCalledInMethodRun(node ast.Node) bool {
 			if !methodParallelCalled {
 				ast.Inspect(arg, func(n ast.Node) bool {
 					if !methodParallelCalled {
-						methodParallelCalled = methodParallelIsCalledInTestFunction2(n)
+						methodParallelCalled = methodParallelIsCalledInRunMethod(n)
 						return true
 					}
 					return false
 				})
 			}
 		}
-
 	}
 	return methodParallelCalled
 }
 
-func methodParallelIsCalledInTestFunction2(node ast.Node) bool {
+func methodParallelIsCalledInRunMethod(node ast.Node) bool {
 	return checkIfExprCallHasMethod(node, "Parallel")
 }
 
@@ -123,7 +176,7 @@ func methodParallelIsCalledInTestFunction(node ast.Node) bool {
 	return checkIfExprCallHasMethod(node, "Parallel")
 }
 
-func methodRunIsCalledInRange(node ast.Node) bool {
+func methodRunIsCalledInRangeStatement(node ast.Node) bool {
 	return checkIfExprCallHasMethod(node, "Run")
 }
 
@@ -135,6 +188,20 @@ func checkIfExprCallHasMethod(node ast.Node, methodName string) bool {
 		}
 	}
 	return false
+}
+
+func methodRunFirstArgumentObjectName(node ast.Node) string {
+	switch n := node.(type) {
+	case *ast.CallExpr:
+		for _, arg := range n.Args {
+			if s, ok := arg.(*ast.SelectorExpr); ok {
+				if i, ok := s.X.(*ast.Ident); ok {
+					return i.Name
+				}
+			}
+		}
+	}
+	return ""
 }
 
 func isItATestFunction(funcDecl *ast.FuncDecl) bool {

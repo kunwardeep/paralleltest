@@ -30,8 +30,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 	inspector.Preorder(nodeFilter, func(node ast.Node) {
 		funcDecl := node.(*ast.FuncDecl)
 		funcHasParallelMethod := false
-		rangeStatementExists := false
-		rangeHasParallelMethod := false
+		rangeStatementOverTestCasesExists := false
+		rangeStatementHasParallelMethod := false
+		var rangeNode ast.Node
 
 		// Check runs for test functions only
 		if !isItATestFunction(funcDecl) {
@@ -44,21 +45,26 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			// Check if the test method is calling t.parallel
 			case *ast.ExprStmt:
 				ast.Inspect(v, func(n ast.Node) bool {
-					if funcHasParallelMethod == false {
-						funcHasParallelMethod = callExprCallsMethodParallel(n)
+					if !funcHasParallelMethod  {
+						funcHasParallelMethod = methodParallelIsCalledInTestFunction(n)
 					}
 					return true
 				})
-
+			// Check if the range over testcases is calling t.parallel
 			case *ast.RangeStmt:
-				// Check if the range over testcases is calling t.parallel
-				// TODO: Check range statements is over testcases and not any other ranges
+				rangeNode = v
 
-				rangeStatementExists = true
 				// TODO: Also check for the assignment tc:tc
 				ast.Inspect(v, func(n ast.Node) bool {
-					if rangeHasParallelMethod == false {
-						rangeHasParallelMethod = callExprCallsMethodParallel(n)
+					switch r := n.(type) {
+					case *ast.ExprStmt:
+						if  methodRunIsCalledInRange(r.X){
+							rangeStatementOverTestCasesExists = true
+
+							if !rangeStatementHasParallelMethod{
+								rangeStatementHasParallelMethod = methodParallelIsCalledInMethodRun(r.X)
+							}
+						}
 					}
 					return true
 				})
@@ -68,10 +74,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !funcHasParallelMethod {
 			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel \n", funcDecl.Name.Name)
 		}
-		if rangeStatementExists && !rangeHasParallelMethod {
-			pass.Reportf(node.Pos(), "Range statement for test %s missing the call to method parallel \n", funcDecl.Name.Name)
+		if rangeStatementOverTestCasesExists && !rangeStatementHasParallelMethod {
+			pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel \n", funcDecl.Name.Name)
 		}
-
 	})
 
 	return nil, nil
@@ -83,18 +88,47 @@ func getTestFiles(pass *analysis.Pass) []*ast.File {
 	var testFiles []*ast.File
 	for _, f := range pass.Files {
 		fileName := pass.Fset.Position(f.Pos()).Filename
-		if strings.HasSuffix(fileName,testFileSuffix ) {
+		if strings.HasSuffix(fileName, testFileSuffix) {
 			testFiles = append(testFiles, f)
 		}
 	}
 	return testFiles
 }
 
-func callExprCallsMethodParallel(node ast.Node) bool {
-	methodName := "Parallel"
+func methodParallelIsCalledInMethodRun(node ast.Node) bool {
+	var methodParallelCalled bool
+	switch callExp := node.(type) {
+	case *ast.CallExpr:
+		for _, arg := range callExp.Args {
+			if !methodParallelCalled {
+				ast.Inspect(arg, func(n ast.Node) bool {
+					if !methodParallelCalled {
+						methodParallelCalled = methodParallelIsCalledInTestFunction2(n)
+						return true
+					}
+					return false
+				})
+			}
+		}
 
+	}
+	return methodParallelCalled
+}
+
+func methodParallelIsCalledInTestFunction2(node ast.Node) bool {
+	return checkIfExprCallHasMethod(node, "Parallel")
+}
+
+func methodParallelIsCalledInTestFunction(node ast.Node) bool {
+	return checkIfExprCallHasMethod(node, "Parallel")
+}
+
+func methodRunIsCalledInRange(node ast.Node) bool {
+	return checkIfExprCallHasMethod(node, "Run")
+}
+
+func checkIfExprCallHasMethod(node ast.Node, methodName string) bool {
 	switch n := node.(type) {
-	default:
 	case *ast.CallExpr:
 		if fun, ok := n.Fun.(*ast.SelectorExpr); ok {
 			return fun.Sel.Name == methodName

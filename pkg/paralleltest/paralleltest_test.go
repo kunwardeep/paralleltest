@@ -9,6 +9,7 @@ import (
 )
 
 func TestAll(t *testing.T) {
+	t.Parallel()
 	wd, err := os.Getwd()
 	if err != nil {
 		t.Fatalf("Failed to get wd: %s", err)

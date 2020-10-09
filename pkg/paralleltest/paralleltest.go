@@ -8,11 +8,18 @@ import (
 	"strings"
 )
 
+
+const Doc = `check that tests use t.Parallel() method 
+It also checks that the t.Parallel is used if multiple tests cases are run as part of single test.
+As part of ensuring parallel tests works as expected it checks for reinitialising of the range value 
+over the test cases.(https://tinyurl.com/y6555cy6)`
+
+
 // TODO add ignoring ability flag
 func NewAnalyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name:     "paralleltest",
-		Doc:      "Checks that tests have t.Parallel enabled and that range loop variable is reinitialised",
+		Doc:      Doc,
 		Run:      run,
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	}
@@ -87,17 +94,16 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		if !funcHasParallelMethod {
-			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel \n", funcDecl.Name.Name)
-		}
-
-		if rangeStatementOverTestCasesExists && rangeNode != nil {
+			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel\n", funcDecl.Name.Name)
+		} else if rangeStatementOverTestCasesExists && rangeNode != nil {
 			if !rangeStatementHasParallelMethod {
-				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel \n", funcDecl.Name.Name)
-			}
-			if testRunLoopIdentifier == "" {
-				pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not use range value in t.Run \n", funcDecl.Name.Name)
-			} else if !testLoopVariableReinitialised {
-				pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not reinitialise the variable %s  \n", funcDecl.Name.Name, testRunLoopIdentifier)
+				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel in t.Run\n", funcDecl.Name.Name)
+			} else {
+				if testRunLoopIdentifier == "" {
+					pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not use range value in t.Run\n", funcDecl.Name.Name)
+				} else if !testLoopVariableReinitialised {
+					pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not reinitialise the variable %s\n", funcDecl.Name.Name, testRunLoopIdentifier)
+				}
 			}
 		}
 	})

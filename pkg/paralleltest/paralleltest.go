@@ -82,7 +82,6 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					}
 
 					testLoopVariableReinitialised = testCaseLoopVariableReinitialised(v.Body.List, rangeValueIdentifier, testRunLoopIdentifier)
-
 				}
 			}
 		}
@@ -95,7 +94,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			if !rangeStatementHasParallelMethod {
 				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel \n", funcDecl.Name.Name)
 			}
-			if !testLoopVariableReinitialised {
+			if testRunLoopIdentifier == "" {
+				pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not use range value in t.Run \n", funcDecl.Name.Name)
+			} else if !testLoopVariableReinitialised {
 				pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not reinitialise the variable %s  \n", funcDecl.Name.Name, testRunLoopIdentifier)
 			}
 		}
@@ -216,7 +217,7 @@ func isTestFunction(funcDecl *ast.FuncDecl) bool {
 	param := funcDecl.Type.Params.List[0]
 	if starExp, ok := param.Type.(*ast.StarExpr); ok {
 		if selectExpr, ok := starExp.X.(*ast.SelectorExpr); ok {
-			if selectExpr.Sel.Name != testMethodStruct{
+			if selectExpr.Sel.Name != testMethodStruct {
 				return false
 			}
 			if s, ok := selectExpr.X.(*ast.Ident); ok {

@@ -1,4 +1,4 @@
-module github.com/jirfag/go-printf-func-name
+module github.com/kunwardeep/paralleltest
 
 go 1.13
 

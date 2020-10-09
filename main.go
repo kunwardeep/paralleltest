@@ -1,7 +1,7 @@
 package main
 
 import (
-	"github.com/jirfag/go-printf-func-name/pkg/paralleltest"
+	"github.com/kunwardeep/paralleltest/pkg/paralleltest"
 	"golang.org/x/tools/go/analysis/singlechecker"
 )
 

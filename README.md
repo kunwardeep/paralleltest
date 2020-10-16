@@ -1,5 +1,5 @@
 # paralleltest
-============
+
 
 [![Build Status](https://github.com/kunwardeep/paralleltest/workflows/CI/badge.svg)](https://github.com/kunwardeep/paralleltest/actions)
 

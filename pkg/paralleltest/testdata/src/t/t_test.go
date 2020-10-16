@@ -41,19 +41,33 @@ func TestFunctionRangeMissingCallToParallel(t *testing.T) {
 		})
 	}
 }
-func TestFunctionRangeNotUsingRangeValueIndotRun(t *testing.T) {
+
+func TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun(t *testing.T) {// want "Function TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun missing the call to method parallel"
+	testCases := []struct {
+		name string
+	}{{name: "foo"}}
+
+	for _, tc := range testCases { // want "Range statement for test TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun missing the call to method parallel in t.Run"
+		t.Run(tc.name, func(t *testing.T) {
+			fmt.Println(tc.name)
+		})
+	}
+}
+
+func TestFunctionRangeNotUsingRangeValueInTDotRun(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {
 		name string
 	}{{name: "foo"}}
-	for _, tc := range testCases { // want "Range statement for test TestFunctionRangeNotUsingRangeValueIndotRun does not use range value in t.Run"
+	for _, tc := range testCases { // want "Range statement for test TestFunctionRangeNotUsingRangeValueInTDotRun does not use range value in t.Run"
 		t.Run("tc.name", func(t *testing.T) {
 			t.Parallel()
 			fmt.Println(tc.name)
 		})
 	}
 }
+
 func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
 	t.Parallel()
 
@@ -67,3 +81,16 @@ func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
 		})
 	}
 }
+
+// TODO this test should fail when the missing functionality is implemented as t.Run does not call t.Parallel
+func TestFunctionSuccessful_maybe(t *testing.T) {
+	t.Parallel()
+
+	t.Run("1", func(t *testing.T) {
+		fmt.Println("1")
+	})
+	t.Run("2", func(t *testing.T) {
+		fmt.Println("2")
+	})
+}
+

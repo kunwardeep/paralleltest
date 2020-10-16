@@ -1,16 +1,146 @@
-# go-printf-func-name
+# paralleltest
+============
+[![Build Status](https://github.com/kunwardeep/paralleltest/workflows/CI/badge.svg)](https://github.com/kunwardeep/paralleltest/actions)
 
-The Go linter `go-printf-func-name` checks that printf-like functions are named with `f` at the end.
 
-For example, `myLog` should be named `myLogf` by Go convention:
+The Go linter `paralleltest` checks that the t.Parallel gets called for the test method and for the range of test cases within the test.
+
+
+## Usage
+
+```
+paralleltest ./...
+```
+
+## Examples
+
+### Missing t.Parallel() in the test method
 
 ```go
-package main
+// bad
+func TestFunctionMissingCallToParallel(t *testing.T) {
+} 
 
-import "log"
+// good
+func TestFunctionMissingCallToParallel(t *testing.T) {
+    t.Parallel()
+    // ^ call to t.Parallel()
+} 
+// Error displayed
+// Function TestFunctionMissingCallToParallel missing the call to method parallel
+```
 
-func myLog(format string, args ...interface{}) {
-	const prefix = "[my] "
-	log.Printf(prefix + format, args...)
+### Missing t.Parallel() in the range method
+
+```go
+// bad
+func TestFunctionRangeMissingCallToParallel(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+	}{{name: "foo"}}
+
+	for _, tc := range testCases { 
+		t.Run(tc.name, func(t *testing.T) {
+			fmt.Println(tc.name)
+		})
+	}
 }
+
+// good
+func TestFunctionRangeMissingCallToParallel(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+	}{{name: "foo"}}
+
+	for _, tc := range testCases { 
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			// ^ call to t.Parallel() 
+			fmt.Println(tc.name)
+		})
+	}
+} 
+// Error displayed
+// Range statement for test TestFunctionRangeMissingCallToParallel missing the call to method parallel in t.Run
+```
+
+
+
+### t.Parallel() is called in the range method but testcase variable not being used
+
+```go
+// bad
+func TestFunctionRangeNotUsingRangeValueInTDotRun(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+	}{{name: "foo"}}
+	for _, tc := range testCases {
+		t.Run("this is a test name", func(t *testing.T) {
+			// ^ call to tc.name missing
+			t.Parallel()
+			fmt.Println(tc.name)
+		})
+	}
+}
+
+// good
+func TestFunctionRangeNotUsingRangeValueInTDotRun(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+	}{{name: "foo"}}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// ^ call to tc.name
+			t.Parallel()
+			fmt.Println(tc.name)
+		})
+	}
+}
+// Error displayed
+// Range statement for test TestFunctionRangeNotUsingRangeValueInTDotRun does not use range value in t.Run
+```
+
+### t.Parallel() is called in the range method and test case variable tc being used, but is not reinitialised (<a href="http://example.com/" target="_blank">More Info</a>)
+```go
+// bad
+func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+	}{{name: "foo"}}
+	for _, tc := range testCases { 
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fmt.Println(tc.name)
+		})
+	}
+}
+
+// good
+func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
+	t.Parallel()
+
+	testCases := []struct {
+		name string
+	}{{name: "foo"}}
+	for _, tc := range testCases { 
+		tc:=tc
+		// ^ tc variable reinitialised
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			fmt.Println(tc.name)
+		})
+	}
+}
+// Error displayed
+// Range statement for test TestFunctionRangeNotReInitialisingVariable does not reinitialise the variable tc
 ```

@@ -94,7 +94,9 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		if !funcHasParallelMethod {
 			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel\n", funcDecl.Name.Name)
-		} else if rangeStatementOverTestCasesExists && rangeNode != nil {
+		}
+
+		if rangeStatementOverTestCasesExists && rangeNode != nil {
 			if !rangeStatementHasParallelMethod {
 				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel in t.Run\n", funcDecl.Name.Name)
 			} else {

@@ -2,17 +2,23 @@ package paralleltest
 
 import (
 	"go/ast"
+	"strings"
+
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"strings"
 )
+
+const Doc = `check that tests use t.Parallel() method
+It also checks that the t.Parallel is used if multiple tests cases are run as part of single test.
+As part of ensuring parallel tests works as expected it checks for reinitialising of the range value
+over the test cases.(https://tinyurl.com/y6555cy6)`
 
 // TODO add ignoring ability flag
 func NewAnalyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name:     "paralleltest",
-		Doc:      "Checks that tests have t.Parallel enabled and that range loop variable is reinitialised",
+		Doc:      Doc,
 		Run:      run,
 		Requires: []*analysis.Analyzer{inspect.Analyzer},
 	}
@@ -59,6 +65,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				rangeNode = v
 
 				ast.Inspect(v, func(n ast.Node) bool {
+					// nolint: gocritic
 					switch r := n.(type) {
 					case *ast.ExprStmt:
 						if methodRunIsCalledInRangeStatement(r.X) {
@@ -87,17 +94,18 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		}
 
 		if !funcHasParallelMethod {
-			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel \n", funcDecl.Name.Name)
+			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel\n", funcDecl.Name.Name)
 		}
 
 		if rangeStatementOverTestCasesExists && rangeNode != nil {
 			if !rangeStatementHasParallelMethod {
-				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel \n", funcDecl.Name.Name)
-			}
-			if testRunLoopIdentifier == "" {
-				pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not use range value in t.Run \n", funcDecl.Name.Name)
-			} else if !testLoopVariableReinitialised {
-				pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not reinitialise the variable %s  \n", funcDecl.Name.Name, testRunLoopIdentifier)
+				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel in t.Run\n", funcDecl.Name.Name)
+			} else {
+				if testRunLoopIdentifier == "" {
+					pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not use range value in t.Run\n", funcDecl.Name.Name)
+				} else if !testLoopVariableReinitialised {
+					pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not reinitialise the variable %s\n", funcDecl.Name.Name, testRunLoopIdentifier)
+				}
 			}
 		}
 	})
@@ -120,6 +128,7 @@ func testCaseLoopVariableReinitialised(statements []ast.Stmt, rangeValueIdentifi
 // Return the left hand side and the right hand side identifiers name
 func getLeftAndRightIdentifier(s ast.Stmt) (string, string) {
 	var leftIdentifier, rightIdentifier string
+	// nolint: gocritic
 	switch v := s.(type) {
 	case *ast.AssignStmt:
 		if len(v.Rhs) == 1 {
@@ -151,6 +160,7 @@ func testFiles(pass *analysis.Pass) []*ast.File {
 
 func methodParallelIsCalledInMethodRun(node ast.Node) bool {
 	var methodParallelCalled bool
+	// nolint: gocritic
 	switch callExp := node.(type) {
 	case *ast.CallExpr:
 		for _, arg := range callExp.Args {
@@ -181,6 +191,7 @@ func methodRunIsCalledInRangeStatement(node ast.Node) bool {
 }
 
 func exprCallHasMethod(node ast.Node, methodName string) bool {
+	// nolint: gocritic
 	switch n := node.(type) {
 	case *ast.CallExpr:
 		if fun, ok := n.Fun.(*ast.SelectorExpr); ok {
@@ -192,6 +203,7 @@ func exprCallHasMethod(node ast.Node, methodName string) bool {
 
 // Gets the object name `tc` from method t.Run(tc.Foo, func(t *testing.T)
 func methodRunFirstArgumentObjectName(node ast.Node) string {
+	// nolint: gocritic
 	switch n := node.(type) {
 	case *ast.CallExpr:
 		for _, arg := range n.Args {
@@ -217,11 +229,10 @@ func isTestFunction(funcDecl *ast.FuncDecl) bool {
 	param := funcDecl.Type.Params.List[0]
 	if starExp, ok := param.Type.(*ast.StarExpr); ok {
 		if selectExpr, ok := starExp.X.(*ast.SelectorExpr); ok {
-			if selectExpr.Sel.Name != testMethodStruct {
-				return false
-			}
-			if s, ok := selectExpr.X.(*ast.Ident); ok {
-				return s.Name == testMethodPackageType
+			if selectExpr.Sel.Name == testMethodStruct {
+				if s, ok := selectExpr.X.(*ast.Ident); ok {
+					return s.Name == testMethodPackageType
+				}
 			}
 		}
 	}

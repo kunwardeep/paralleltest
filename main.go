@@ -1,8 +1,9 @@
 package main
 
 import (
-	"github.com/kunwardeep/paralleltest/pkg/paralleltest"
 	"golang.org/x/tools/go/analysis/singlechecker"
+
+	"github.com/kunwardeep/paralleltest/pkg/paralleltest"
 )
 
 func main() {

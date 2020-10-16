@@ -1,0 +1,40 @@
+linters:
+  enable:
+    # Default linters
+    - deadcode
+    - errcheck
+    - gosimple
+    - govet
+    - ineffassign
+    - staticcheck
+    - structcheck
+    - typecheck
+    - unused
+    - varcheck
+
+    # Optional ones we want to include
+    - gochecknoglobals
+    - gochecknoinits
+    - goconst
+    - gocritic
+    - goimports
+    - golint
+    - gosec
+    - misspell
+    - nakedret
+    - unconvert
+    - unparam
+
+linters-settings:
+  goimports:
+    local-prefixes:
+      github.com/kunwardeep/paralleltest
+  misspell:
+    local: US
+    ignore-words:
+
+  govet:
+    check-shadowing: true
+
+output:
+  format: colored-line-number

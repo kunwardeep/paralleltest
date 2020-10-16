@@ -1,0 +1,46 @@
+linters-settings:
+  gocyclo:
+    min-complexity: 10
+  goconst:
+    min-len: 2
+    min-occurrences: 4
+  lll:
+    line-length: 120
+
+issues:
+  exclude-use-default: false
+  exclude:
+    # unparam
+    - 'result .* is always'
+    - 'always receives'
+
+linters:
+  disable-all: true
+  enable:
+    - bodyclose
+    - deadcode
+    - depguard
+    - errcheck
+    - gocognit
+    - goconst
+    - gocyclo
+    - gofmt
+    - goimports
+    - golint
+    - gosimple
+    - govet
+    - ineffassign
+    - interfacer
+    - lll
+    - misspell
+    - nakedret
+    - prealloc
+    - staticcheck
+    - structcheck
+    - stylecheck
+    - typecheck
+    - unconvert
+    - unparam
+    - unused
+    - varcheck
+    - whitespace

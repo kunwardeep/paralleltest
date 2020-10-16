@@ -65,6 +65,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 				rangeNode = v
 
 				ast.Inspect(v, func(n ast.Node) bool {
+					// nolint: gocritic
 					switch r := n.(type) {
 					case *ast.ExprStmt:
 						if methodRunIsCalledInRangeStatement(r.X) {
@@ -127,6 +128,7 @@ func testCaseLoopVariableReinitialised(statements []ast.Stmt, rangeValueIdentifi
 // Return the left hand side and the right hand side identifiers name
 func getLeftAndRightIdentifier(s ast.Stmt) (string, string) {
 	var leftIdentifier, rightIdentifier string
+	// nolint: gocritic
 	switch v := s.(type) {
 	case *ast.AssignStmt:
 		if len(v.Rhs) == 1 {
@@ -158,6 +160,7 @@ func testFiles(pass *analysis.Pass) []*ast.File {
 
 func methodParallelIsCalledInMethodRun(node ast.Node) bool {
 	var methodParallelCalled bool
+	// nolint: gocritic
 	switch callExp := node.(type) {
 	case *ast.CallExpr:
 		for _, arg := range callExp.Args {
@@ -188,6 +191,7 @@ func methodRunIsCalledInRangeStatement(node ast.Node) bool {
 }
 
 func exprCallHasMethod(node ast.Node, methodName string) bool {
+	// nolint: gocritic
 	switch n := node.(type) {
 	case *ast.CallExpr:
 		if fun, ok := n.Fun.(*ast.SelectorExpr); ok {
@@ -199,6 +203,7 @@ func exprCallHasMethod(node ast.Node, methodName string) bool {
 
 // Gets the object name `tc` from method t.Run(tc.Foo, func(t *testing.T)
 func methodRunFirstArgumentObjectName(node ast.Node) string {
+	// nolint: gocritic
 	switch n := node.(type) {
 	case *ast.CallExpr:
 		for _, arg := range n.Args {

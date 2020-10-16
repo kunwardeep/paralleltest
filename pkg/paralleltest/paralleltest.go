@@ -2,18 +2,17 @@ package paralleltest
 
 import (
 	"go/ast"
+	"strings"
+
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/passes/inspect"
 	"golang.org/x/tools/go/ast/inspector"
-	"strings"
 )
 
-
-const Doc = `check that tests use t.Parallel() method 
+const Doc = `check that tests use t.Parallel() method
 It also checks that the t.Parallel is used if multiple tests cases are run as part of single test.
-As part of ensuring parallel tests works as expected it checks for reinitialising of the range value 
+As part of ensuring parallel tests works as expected it checks for reinitialising of the range value
 over the test cases.(https://tinyurl.com/y6555cy6)`
-
 
 // TODO add ignoring ability flag
 func NewAnalyzer() *analysis.Analyzer {
@@ -223,11 +222,10 @@ func isTestFunction(funcDecl *ast.FuncDecl) bool {
 	param := funcDecl.Type.Params.List[0]
 	if starExp, ok := param.Type.(*ast.StarExpr); ok {
 		if selectExpr, ok := starExp.X.(*ast.SelectorExpr); ok {
-			if selectExpr.Sel.Name != testMethodStruct {
-				return false
-			}
-			if s, ok := selectExpr.X.(*ast.Ident); ok {
-				return s.Name == testMethodPackageType
+			if selectExpr.Sel.Name == testMethodStruct {
+				if s, ok := selectExpr.X.(*ast.Ident); ok {
+					return s.Name == testMethodPackageType
+				}
 			}
 		}
 	}

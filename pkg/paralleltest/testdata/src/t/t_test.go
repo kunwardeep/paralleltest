@@ -5,8 +5,11 @@ import (
 	"testing"
 )
 
-func notTestFunction()      {}
-func notTestFunctionWithParam(i int) { }
+func NoATestFunction()                   {}
+func TestingFunctionLooksLikeATestButIsNotWithParam()                   {}
+func TestingFunctionLooksLikeATestButIsWithParam(i int)     {}
+func AbcFunctionSuccessful(t *testing.T) {}
+
 func TestFunctionSuccessful(t *testing.T) {
 	t.Parallel()
 
@@ -42,7 +45,7 @@ func TestFunctionRangeMissingCallToParallel(t *testing.T) {
 	}
 }
 
-func TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun(t *testing.T) {// want "Function TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun missing the call to method parallel"
+func TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun(t *testing.T) { // want "Function TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun missing the call to method parallel"
 	testCases := []struct {
 		name string
 	}{{name: "foo"}}
@@ -93,4 +96,3 @@ func TestFunctionSuccessful_maybe(t *testing.T) {
 		fmt.Println("2")
 	})
 }
-

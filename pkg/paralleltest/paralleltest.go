@@ -221,6 +221,11 @@ func methodRunFirstArgumentObjectName(node ast.Node) string {
 func isTestFunction(funcDecl *ast.FuncDecl) bool {
 	testMethodPackageType := "testing"
 	testMethodStruct := "T"
+	testPrefix := "Test"
+
+	if !strings.HasPrefix(funcDecl.Name.Name, testPrefix) {
+		return false
+	}
 
 	if funcDecl.Type.Params != nil && len(funcDecl.Type.Params.List) != 1 {
 		return false

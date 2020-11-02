@@ -25,7 +25,7 @@ func TestFunctionSuccessfulRangeTest(t *testing.T) {
 	}
 }
 
-func TestFunctionSuccessfulNoRangeTests(t *testing.T) {
+func TestFunctionSuccessfulNoRangeTest(t *testing.T) {
 	t.Parallel()
 
 	testCases := []struct {

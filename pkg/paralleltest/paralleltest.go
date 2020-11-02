@@ -14,7 +14,6 @@ It also checks that the t.Parallel is used if multiple tests cases are run as pa
 As part of ensuring parallel tests works as expected it checks for reinitialising of the range value
 over the test cases.(https://tinyurl.com/y6555cy6)`
 
-// TODO add ignoring ability flag
 func NewAnalyzer() *analysis.Analyzer {
 	return &analysis.Analyzer{
 		Name:     "paralleltest",
@@ -37,10 +36,10 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		var funcHasParallelMethod,
 			rangeStatementOverTestCasesExists,
 			rangeStatementHasParallelMethod,
-
 			testLoopVariableReinitialised bool
 		var testRunLoopIdentifier string
-
+		var numberOfTestRun int
+		var positionOfTestRunNode []ast.Node
 		var rangeNode ast.Node
 
 		// Check runs for test functions only
@@ -51,11 +50,26 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		for _, l := range funcDecl.Body.List {
 			switch v := l.(type) {
 
-			// Check if the test method is calling t.parallel
 			case *ast.ExprStmt:
 				ast.Inspect(v, func(n ast.Node) bool {
+					// Check if the test method is calling t.parallel
 					if !funcHasParallelMethod {
 						funcHasParallelMethod = methodParallelIsCalledInTestFunction(n)
+					}
+
+					// Check if the t.Run within the test function is calling t.parallel
+					if methodRunIsCalledInTestFunction(n) {
+						hasParallel := false
+						numberOfTestRun++
+						ast.Inspect(v, func(p ast.Node) bool {
+							if !hasParallel {
+								hasParallel = methodParallelIsCalledInTestFunction(p)
+							}
+							return true
+						})
+						if !hasParallel {
+							positionOfTestRunNode = append(positionOfTestRunNode, n)
+						}
 					}
 					return true
 				})
@@ -99,13 +113,20 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 		if rangeStatementOverTestCasesExists && rangeNode != nil {
 			if !rangeStatementHasParallelMethod {
-				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel in t.Run\n", funcDecl.Name.Name)
+				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel in test Run\n", funcDecl.Name.Name)
 			} else {
 				if testRunLoopIdentifier == "" {
-					pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not use range value in t.Run\n", funcDecl.Name.Name)
+					pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not use range value in test Run\n", funcDecl.Name.Name)
 				} else if !testLoopVariableReinitialised {
 					pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not reinitialise the variable %s\n", funcDecl.Name.Name, testRunLoopIdentifier)
 				}
+			}
+		}
+
+		// Check if the t.Run is more than one as there is no point making one test parallel
+		if numberOfTestRun > 1 && len(positionOfTestRunNode) > 0 {
+			for _, n := range positionOfTestRunNode {
+				pass.Reportf(n.Pos(), "Function %s has missing the call to method parallel in the test run\n", funcDecl.Name.Name)
 			}
 		}
 	})
@@ -190,6 +211,9 @@ func methodRunIsCalledInRangeStatement(node ast.Node) bool {
 	return exprCallHasMethod(node, "Run")
 }
 
+func methodRunIsCalledInTestFunction(node ast.Node) bool {
+	return exprCallHasMethod(node, "Run")
+}
 func exprCallHasMethod(node ast.Node, methodName string) bool {
 	// nolint: gocritic
 	switch n := node.(type) {

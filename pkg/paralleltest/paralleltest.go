@@ -24,8 +24,7 @@ func NewAnalyzer() *analysis.Analyzer {
 }
 
 func run(pass *analysis.Pass) (interface{}, error) {
-	// Run only for test files
-	inspector := inspector.New(testFiles(pass))
+	inspector := inspector.New(pass.Files)
 
 	nodeFilter := []ast.Node{
 		(*ast.FuncDecl)(nil),
@@ -164,19 +163,6 @@ func getLeftAndRightIdentifier(s ast.Stmt) (string, string) {
 		}
 	}
 	return leftIdentifier, rightIdentifier
-}
-
-func testFiles(pass *analysis.Pass) []*ast.File {
-	testFileSuffix := "_test.go"
-
-	var testFiles []*ast.File
-	for _, f := range pass.Files {
-		fileName := pass.Fset.Position(f.Pos()).Filename
-		if strings.HasSuffix(fileName, testFileSuffix) {
-			testFiles = append(testFiles, f)
-		}
-	}
-	return testFiles
 }
 
 func methodParallelIsCalledInMethodRun(node ast.Node) bool {

@@ -1,6 +1,6 @@
 export GOSUMDB := off
 export GOFLAGS := -v -mod=vendor
-GOLANGCI_VERSION := v1.31.0
+GOLANGCI_VERSION := v1.32.2
 
 default: build
 
@@ -10,6 +10,8 @@ build:
 ensure_deps:
 	go mod tidy
 	go mod vendor
+	cd tools  && go mod tidy
+	cd tools && go mod vendor
 
 install_devtools:
 	curl -sfL https://install.goreleaser.com/github.com/golangci/golangci-lint.sh | sh -s -- -b $(GOPATH)/bin $(GOLANGCI_VERSION)

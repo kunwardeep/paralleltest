@@ -109,7 +109,7 @@ func TestFunctionRangeNotUsingRangeValueInTDotRun(t *testing.T) {
 // Range statement for test TestFunctionRangeNotUsingRangeValueInTDotRun does not use range value in t.Run
 ```
 
-### t.Parallel() is called in the range method and test case variable tc being used, but is not reinitialised (<a href="http://example.com/" target="_blank">More Info</a>)
+### t.Parallel() is called in the range method and test case variable tc being used, but is not reinitialised (<a href="https://gist.github.com/kunwardeep/80c2e9f3d3256c894898bae82d9f75d0" target="_blank">More Info</a>)
 ```go
 // bad
 func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {

@@ -18,8 +18,8 @@ func TestFunctionSuccessfulRangeTest(t *testing.T) {
 	}{{name: "foo"}}
 	for _, tc := range testCases {
 		tc := tc
-		t.Run(tc.name, func(t *testing.T) {
-			t.Parallel()
+		t.Run(tc.name, func(x *testing.T) {
+			x.Parallel()
 			fmt.Println(tc.name)
 		})
 	}
@@ -129,11 +129,35 @@ func TestFunctionFirstOneTestRunMissingCallToParallel(t *testing.T) {
 func TestFunctionSecondOneTestRunMissingCallToParallel(t *testing.T) {
 	t.Parallel()
 
-	t.Run("1", func(t *testing.T) {
-		t.Parallel()
+	t.Run("1", func(x *testing.T) {
+		x.Parallel()
 		fmt.Println("1")
 	})
 	t.Run("2", func(t *testing.T) { // want "Function TestFunctionSecondOneTestRunMissingCallToParallel has missing the call to method parallel in the test run"
 		fmt.Println("2")
 	})
+}
+
+type notATest int
+
+func (notATest) Run(args ...interface{}) {}
+func (notATest) Parallel()               {}
+
+func TestFunctionWithRunLookalike(t *testing.T) {
+	t.Parallel()
+
+	var other notATest
+	// These aren't t.Run, so they shouldn't be flagged as Run invocations missing calls to Parallel.
+	other.Run(1, 1)
+	other.Run(2, 2)
+}
+
+func TestFunctionWithParallelLookalike(t *testing.T) { // want "Function TestFunctionWithParallelLookalike missing the call to method parallel"
+	var other notATest
+	// This isn't t.Parallel, so it doesn't qualify as a call to Parallel.
+	other.Parallel()
+}
+
+func TestFunctionWithOtherTestingVar(q *testing.T) {
+	q.Parallel()
 }

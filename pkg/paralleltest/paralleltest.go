@@ -104,7 +104,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 							if loopVariableUsedInRun == nil {
 								if run, ok := r.X.(*ast.CallExpr); ok {
-									loopVariableUsedInRun = isLoopVarReferencedInRun(run, loopVars, pass.TypesInfo)
+									loopVariableUsedInRun = loopVarReferencedInRun(run, loopVars, pass.TypesInfo)
 								}
 							}
 						}
@@ -241,7 +241,7 @@ func isTestFunction(funcDecl *ast.FuncDecl) (bool, string) {
 	return false, ""
 }
 
-func isLoopVarReferencedInRun(call *ast.CallExpr, vars []types.Object, typeInfo *types.Info) (found *string) {
+func loopVarReferencedInRun(call *ast.CallExpr, vars []types.Object, typeInfo *types.Info) (found *string) {
 	if len(call.Args) != 2 {
 		return
 	}

@@ -1,8 +1,6 @@
 # paralleltest
 
-
-[![Build Status](https://github.com/kunwardeep/paralleltest/workflows/CI/badge.svg)](https://github.com/kunwardeep/paralleltest/actions)
-
+[![Test](https://github.com/kunwardeep/paralleltest/actions/workflows/test.yml/badge.svg)](https://github.com/kunwardeep/paralleltest/actions/workflows/test.yml)
 
 The Go linter `paralleltest` checks that the t.Parallel gets called for the test method and for the range of test cases within the test.
 

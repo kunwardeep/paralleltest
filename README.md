@@ -13,6 +13,8 @@ The Go linter `paralleltest` checks that the t.Parallel gets called for the test
 paralleltest ./...
 ```
 
+To ignore missing calls to `t.Parallel` and only report incorrect uses of it, pass the flag `-i`.
+
 ## Examples
 
 ### Missing t.Parallel() in the test method

@@ -1,6 +1,7 @@
 package paralleltest
 
 import (
+	"flag"
 	"go/ast"
 	"go/types"
 	"strings"
@@ -15,16 +16,28 @@ It also checks that the t.Parallel is used if multiple tests cases are run as pa
 As part of ensuring parallel tests works as expected it checks for reinitialising of the range value
 over the test cases.(https://tinyurl.com/y6555cy6)`
 
-func NewAnalyzer() *analysis.Analyzer {
-	return &analysis.Analyzer{
-		Name:     "paralleltest",
-		Doc:      Doc,
-		Run:      run,
-		Requires: []*analysis.Analyzer{inspect.Analyzer},
-	}
+var Analyzer = &analysis.Analyzer{
+	Name:     "paralleltest",
+	Doc:      Doc,
+	Run:      run,
+	Flags:    flags(),
+	Requires: []*analysis.Analyzer{inspect.Analyzer},
 }
 
+const ignoreMissingFlag = "i"
+
+func flags() flag.FlagSet {
+	options := flag.NewFlagSet("", flag.ExitOnError)
+	options.Bool(ignoreMissingFlag, false, "ignore missing calls to t.Parallel")
+	return *options
+}
+
+type boolValue bool
+
 func run(pass *analysis.Pass) (interface{}, error) {
+
+	ignoreMissing := pass.Analyzer.Flags.Lookup(ignoreMissingFlag).Value.(flag.Getter).Get().(bool)
+
 	inspector := inspector.New(pass.Files)
 
 	nodeFilter := []ast.Node{
@@ -52,12 +65,12 @@ func run(pass *analysis.Pass) (interface{}, error) {
 
 			case *ast.ExprStmt:
 				ast.Inspect(v, func(n ast.Node) bool {
-					// Check if the test method is calling t.parallel
+					// Check if the test method is calling t.Parallel
 					if !funcHasParallelMethod {
 						funcHasParallelMethod = methodParallelIsCalledInTestFunction(n, testVar)
 					}
 
-					// Check if the t.Run within the test function is calling t.parallel
+					// Check if the t.Run within the test function is calling t.Parallel
 					if methodRunIsCalledInTestFunction(n, testVar) {
 						// n is a call to t.Run; find out the name of the subtest's *testing.T parameter.
 						innerTestVar := getRunCallbackParameterName(n)
@@ -77,7 +90,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 					return true
 				})
 
-			// Check if the range over testcases is calling t.parallel
+			// Check if the range over testcases is calling t.Parallel
 			case *ast.RangeStmt:
 				rangeNode = v
 
@@ -114,22 +127,26 @@ func run(pass *analysis.Pass) (interface{}, error) {
 			}
 		}
 
-		if !funcHasParallelMethod {
+		if !ignoreMissing && !funcHasParallelMethod {
 			pass.Reportf(node.Pos(), "Function %s missing the call to method parallel\n", funcDecl.Name.Name)
 		}
 
 		if rangeStatementOverTestCasesExists && rangeNode != nil {
 			if !rangeStatementHasParallelMethod {
-				pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel in test Run\n", funcDecl.Name.Name)
+				if !ignoreMissing {
+					pass.Reportf(rangeNode.Pos(), "Range statement for test %s missing the call to method parallel in test Run\n", funcDecl.Name.Name)
+				}
 			} else if loopVariableUsedInRun != nil {
 				pass.Reportf(rangeNode.Pos(), "Range statement for test %s does not reinitialise the variable %s\n", funcDecl.Name.Name, *loopVariableUsedInRun)
 			}
 		}
 
 		// Check if the t.Run is more than one as there is no point making one test parallel
-		if numberOfTestRun > 1 && len(positionOfTestRunNode) > 0 {
-			for _, n := range positionOfTestRunNode {
-				pass.Reportf(n.Pos(), "Function %s has missing the call to method parallel in the test run\n", funcDecl.Name.Name)
+		if !ignoreMissing {
+			if numberOfTestRun > 1 && len(positionOfTestRunNode) > 0 {
+				for _, n := range positionOfTestRunNode {
+					pass.Reportf(n.Pos(), "Function %s has missing the call to method parallel in the test run\n", funcDecl.Name.Name)
+				}
 			}
 		}
 	})

@@ -1,9 +1,10 @@
-name: CI
+name: Test
 
 on: [push]
 
 jobs:
   test:
+    name: Test
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source

@@ -16,5 +16,5 @@ func TestAll(t *testing.T) {
 	}
 
 	testdata := filepath.Join(filepath.Dir(wd), "paralleltest", "testdata")
-	analysistest.Run(t, testdata, NewAnalyzer(), "t")
+	analysistest.Run(t, testdata, Analyzer, "t")
 }

@@ -7,5 +7,5 @@ import (
 )
 
 func main() {
-	singlechecker.Main(paralleltest.NewAnalyzer())
+	singlechecker.Main(paralleltest.Analyzer)
 }

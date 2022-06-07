@@ -1,6 +1,7 @@
 package paralleltest
 
 import (
+	"flag"
 	"go/ast"
 	"go/types"
 	"strings"
@@ -19,16 +20,23 @@ var Analyzer = &analysis.Analyzer{
 	Name:     "paralleltest",
 	Doc:      Doc,
 	Run:      run,
+	Flags:    flags(),
 	Requires: []*analysis.Analyzer{inspect.Analyzer},
 }
 
-var ignoreMissing bool
+const ignoreMissingFlag = "i"
 
-func init() {
-	Analyzer.Flags.BoolVar(&ignoreMissing, "i", false, "ignore missing calls to t.Parallel")
+func flags() flag.FlagSet {
+	options := flag.NewFlagSet("", flag.ExitOnError)
+	options.Bool(ignoreMissingFlag, false, "ignore missing calls to t.Parallel")
+	return *options
 }
 
+type boolValue bool
+
 func run(pass *analysis.Pass) (interface{}, error) {
+
+	ignoreMissing := pass.Analyzer.Flags.Lookup(ignoreMissingFlag).Value.(flag.Getter).Get().(bool)
 
 	inspector := inspector.New(pass.Files)
 

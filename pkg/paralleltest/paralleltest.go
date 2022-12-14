@@ -32,8 +32,6 @@ func flags() flag.FlagSet {
 	return *options
 }
 
-type boolValue bool
-
 func run(pass *analysis.Pass) (interface{}, error) {
 
 	ignoreMissing := pass.Analyzer.Flags.Lookup(ignoreMissingFlag).Value.(flag.Getter).Get().(bool)

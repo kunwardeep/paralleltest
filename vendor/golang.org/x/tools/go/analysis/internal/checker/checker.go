@@ -33,8 +33,6 @@ import (
 	"golang.org/x/tools/go/analysis"
 	"golang.org/x/tools/go/analysis/internal/analysisflags"
 	"golang.org/x/tools/go/packages"
-	"golang.org/x/tools/internal/analysisinternal"
-	"golang.org/x/tools/internal/span"
 )
 
 var (
@@ -51,6 +49,9 @@ var (
 	// Log files for optional performance tracing.
 	CPUProfile, MemProfile, Trace string
 
+	// IncludeTests indicates whether test files should be analyzed too.
+	IncludeTests = true
+
 	// Fix determines whether to apply all suggested fixes.
 	Fix bool
 )
@@ -65,6 +66,7 @@ func RegisterFlags() {
 	flag.StringVar(&CPUProfile, "cpuprofile", "", "write CPU profile to this file")
 	flag.StringVar(&MemProfile, "memprofile", "", "write memory profile to this file")
 	flag.StringVar(&Trace, "trace", "", "write trace log to this file")
+	flag.BoolVar(&IncludeTests, "test", IncludeTests, "indicates whether test files should be analyzed, too")
 
 	flag.BoolVar(&Fix, "fix", false, "apply all suggested fixes")
 }
@@ -143,7 +145,11 @@ func Run(args []string, analyzers []*analysis.Analyzer) (exitcode int) {
 	roots := analyze(initial, analyzers)
 
 	if Fix {
-		applyFixes(roots)
+		if err := applyFixes(roots); err != nil {
+			// Fail when applying fixes failed.
+			log.Print(err)
+			return 1
+		}
 	}
 	return printDiagnostics(roots)
 }
@@ -163,7 +169,7 @@ func load(patterns []string, allSyntax bool) ([]*packages.Package, error) {
 	}
 	conf := packages.Config{
 		Mode:  mode,
-		Tests: true,
+		Tests: IncludeTests,
 	}
 	initial, err := packages.Load(&conf, patterns...)
 	if err == nil {
@@ -301,7 +307,7 @@ func analyze(pkgs []*packages.Package, analyzers []*analysis.Analyzer) []*action
 	return roots
 }
 
-func applyFixes(roots []*action) {
+func applyFixes(roots []*action) error {
 	visited := make(map[*action]bool)
 	var apply func(*action) error
 	var visitAll func(actions []*action) error
@@ -309,7 +315,9 @@ func applyFixes(roots []*action) {
 		for _, act := range actions {
 			if !visited[act] {
 				visited[act] = true
-				visitAll(act.deps)
+				if err := visitAll(act.deps); err != nil {
+					return err
+				}
 				if err := apply(act); err != nil {
 					return err
 				}
@@ -328,6 +336,10 @@ func applyFixes(roots []*action) {
 		edit        offsetedit
 		left, right *node
 	}
+	// Edits x and y are equivalent.
+	equiv := func(x, y offsetedit) bool {
+		return x.start == y.start && x.end == y.end && bytes.Equal(x.newText, y.newText)
+	}
 
 	var insert func(tree **node, edit offsetedit) error
 	insert = func(treeptr **node, edit offsetedit) error {
@@ -340,6 +352,13 @@ func applyFixes(roots []*action) {
 			return insert(&tree.left, edit)
 		} else if edit.start >= tree.edit.end {
 			return insert(&tree.right, edit)
+		}
+		if equiv(edit, tree.edit) { // equivalent edits?
+			// We skip over equivalent edits without considering them
+			// an error. This handles identical edits coming from the
+			// multiple ways of loading a package into a
+			// *go/packages.Packages for testing, e.g. packages "p" and "p [p.test]".
+			return nil
 		}
 
 		// Overlapping text edit.
@@ -380,14 +399,16 @@ func applyFixes(roots []*action) {
 		return nil
 	}
 
-	visitAll(roots)
+	if err := visitAll(roots); err != nil {
+		return err
+	}
 
 	fset := token.NewFileSet() // Shared by parse calls below
 	// Now we've got a set of valid edits for each file. Get the new file contents.
 	for f, tree := range editsForFile {
 		contents, err := ioutil.ReadFile(f.Name())
 		if err != nil {
-			log.Fatal(err)
+			return err
 		}
 
 		cur := 0 // current position in the file
@@ -403,6 +424,8 @@ func applyFixes(roots []*action) {
 			edit := node.edit
 			if edit.start > cur {
 				out.Write(contents[cur:edit.start])
+				out.Write(edit.newText)
+			} else if cur == 0 && edit.start == 0 { // edit starts at first character?
 				out.Write(edit.newText)
 			}
 			cur = edit.end
@@ -426,8 +449,11 @@ func applyFixes(roots []*action) {
 			}
 		}
 
-		ioutil.WriteFile(f.Name(), out.Bytes(), 0644)
+		if err := ioutil.WriteFile(f.Name(), out.Bytes(), 0644); err != nil {
+			return err
+		}
 	}
+	return nil
 }
 
 // printDiagnostics prints the diagnostics for the root packages in either
@@ -574,7 +600,6 @@ type action struct {
 	deps         []*action
 	objectFacts  map[objectFactKey]analysis.Fact
 	packageFacts map[packageFactKey]analysis.Fact
-	inputs       map[*analysis.Analyzer]interface{}
 	result       interface{}
 	diagnostics  []analysis.Diagnostic
 	err          error
@@ -672,14 +697,16 @@ func (act *action) execOnce() {
 
 	// Run the analysis.
 	pass := &analysis.Pass{
-		Analyzer:          act.a,
-		Fset:              act.pkg.Fset,
-		Files:             act.pkg.Syntax,
-		OtherFiles:        act.pkg.OtherFiles,
-		IgnoredFiles:      act.pkg.IgnoredFiles,
-		Pkg:               act.pkg.Types,
-		TypesInfo:         act.pkg.TypesInfo,
-		TypesSizes:        act.pkg.TypesSizes,
+		Analyzer:     act.a,
+		Fset:         act.pkg.Fset,
+		Files:        act.pkg.Syntax,
+		OtherFiles:   act.pkg.OtherFiles,
+		IgnoredFiles: act.pkg.IgnoredFiles,
+		Pkg:          act.pkg.Types,
+		TypesInfo:    act.pkg.TypesInfo,
+		TypesSizes:   act.pkg.TypesSizes,
+		TypeErrors:   act.pkg.TypeErrors,
+
 		ResultOf:          inputs,
 		Report:            func(d analysis.Diagnostic) { act.diagnostics = append(act.diagnostics, d) },
 		ImportObjectFact:  act.importObjectFact,
@@ -690,36 +717,6 @@ func (act *action) execOnce() {
 		AllPackageFacts:   act.allPackageFacts,
 	}
 	act.pass = pass
-
-	var errors []types.Error
-	// Get any type errors that are attributed to the pkg.
-	// This is necessary to test analyzers that provide
-	// suggested fixes for compiler/type errors.
-	for _, err := range act.pkg.Errors {
-		if err.Kind != packages.TypeError {
-			continue
-		}
-		// err.Pos is a string of form: "file:line:col" or "file:line" or "" or "-"
-		spn := span.Parse(err.Pos)
-		// Extract the token positions from the error string.
-		line, col, offset := spn.Start().Line(), spn.Start().Column(), -1
-		act.pkg.Fset.Iterate(func(f *token.File) bool {
-			if f.Name() != spn.URI().Filename() {
-				return true
-			}
-			offset = int(f.LineStart(line)) + col - 1
-			return false
-		})
-		if offset == -1 {
-			continue
-		}
-		errors = append(errors, types.Error{
-			Fset: act.pkg.Fset,
-			Msg:  err.Msg,
-			Pos:  token.Pos(offset),
-		})
-	}
-	analysisinternal.SetTypeErrors(pass, errors)
 
 	var err error
 	if act.pkg.IllTyped && !pass.Analyzer.RunDespiteErrors {
@@ -762,7 +759,7 @@ func inheritFacts(act, dep *action) {
 		if serialize {
 			encodedFact, err := codeFact(fact)
 			if err != nil {
-				log.Panicf("internal error: encoding of %T fact failed in %v", fact, act)
+				log.Panicf("internal error: encoding of %T fact failed in %v: %v", fact, act, err)
 			}
 			fact = encodedFact
 		}
@@ -826,7 +823,7 @@ func codeFact(fact analysis.Fact) (analysis.Fact, error) {
 
 // exportedFrom reports whether obj may be visible to a package that imports pkg.
 // This includes not just the exported members of pkg, but also unexported
-// constants, types, fields, and methods, perhaps belonging to oether packages,
+// constants, types, fields, and methods, perhaps belonging to other packages,
 // that find there way into the API.
 // This is an overapproximation of the more accurate approach used by
 // gc export data, which walks the type graph, but it's much simpler.
@@ -890,7 +887,7 @@ func (act *action) exportObjectFact(obj types.Object, fact analysis.Fact) {
 func (act *action) allObjectFacts() []analysis.ObjectFact {
 	facts := make([]analysis.ObjectFact, 0, len(act.objectFacts))
 	for k := range act.objectFacts {
-		facts = append(facts, analysis.ObjectFact{k.obj, act.objectFacts[k]})
+		facts = append(facts, analysis.ObjectFact{Object: k.obj, Fact: act.objectFacts[k]})
 	}
 	return facts
 }
@@ -936,7 +933,7 @@ func factType(fact analysis.Fact) reflect.Type {
 func (act *action) allPackageFacts() []analysis.PackageFact {
 	facts := make([]analysis.PackageFact, 0, len(act.packageFacts))
 	for k := range act.packageFacts {
-		facts = append(facts, analysis.PackageFact{k.pkg, act.packageFacts[k]})
+		facts = append(facts, analysis.PackageFact{Package: k.pkg, Fact: act.packageFacts[k]})
 	}
 	return facts
 }

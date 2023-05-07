@@ -145,7 +145,7 @@ func run(pass *analysis.Pass) (interface{}, error) {
 		if !ignoreMissing {
 			if numberOfTestRun > 1 && len(positionOfTestRunNode) > 0 {
 				for _, n := range positionOfTestRunNode {
-					pass.Reportf(n.Pos(), "Function %s has missing the call to method parallel in the test run\n", funcDecl.Name.Name)
+					pass.Reportf(n.Pos(), "Function %s missing the call to method parallel in the test run\n", funcDecl.Name.Name)
 				}
 			}
 		}

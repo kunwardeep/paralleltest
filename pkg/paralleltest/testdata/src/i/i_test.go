@@ -44,6 +44,9 @@ func TestFunctionSuccessfulNoRangeTest(t *testing.T) {
 }
 
 func TestFunctionMissingCallToParallel(t *testing.T) {}
+
+func TestFunctionWithoutTMissingCallToParallel(*testing.T) {}
+
 func TestFunctionRangeMissingCallToParallel(t *testing.T) {
 	t.Parallel()
 

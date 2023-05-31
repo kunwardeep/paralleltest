@@ -106,10 +106,10 @@ func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
 func TestFunctionTwoTestRunMissingCallToParallel(t *testing.T) {
 	t.Parallel()
 
-	t.Run("1", func(t *testing.T) { // want "Function TestFunctionTwoTestRunMissingCallToParallel has missing the call to method parallel in the test run"
+	t.Run("1", func(t *testing.T) { // want "Function TestFunctionTwoTestRunMissingCallToParallel missing the call to method parallel in the test run"
 		fmt.Println("1")
 	})
-	t.Run("2", func(t *testing.T) { // want "Function TestFunctionTwoTestRunMissingCallToParallel has missing the call to method parallel in the test run"
+	t.Run("2", func(t *testing.T) { // want "Function TestFunctionTwoTestRunMissingCallToParallel missing the call to method parallel in the test run"
 		fmt.Println("2")
 	})
 }
@@ -117,7 +117,7 @@ func TestFunctionTwoTestRunMissingCallToParallel(t *testing.T) {
 func TestFunctionFirstOneTestRunMissingCallToParallel(t *testing.T) {
 	t.Parallel()
 
-	t.Run("1", func(t *testing.T) { // want "Function TestFunctionFirstOneTestRunMissingCallToParallel has missing the call to method parallel in the test run"
+	t.Run("1", func(t *testing.T) { // want "Function TestFunctionFirstOneTestRunMissingCallToParallel missing the call to method parallel in the test run"
 		fmt.Println("1")
 	})
 	t.Run("2", func(t *testing.T) {
@@ -133,7 +133,7 @@ func TestFunctionSecondOneTestRunMissingCallToParallel(t *testing.T) {
 		x.Parallel()
 		fmt.Println("1")
 	})
-	t.Run("2", func(t *testing.T) { // want "Function TestFunctionSecondOneTestRunMissingCallToParallel has missing the call to method parallel in the test run"
+	t.Run("2", func(t *testing.T) { // want "Function TestFunctionSecondOneTestRunMissingCallToParallel missing the call to method parallel in the test run"
 		fmt.Println("2")
 	})
 }

@@ -1,7 +1,6 @@
 package paralleltest
 
 import (
-	"flag"
 	"os"
 	"path/filepath"
 	"testing"
@@ -18,10 +17,10 @@ func TestMissing(t *testing.T) {
 	}
 
 	testdata := filepath.Join(filepath.Dir(wd), "paralleltest", "testdata")
-	analysistest.Run(t, testdata, Analyzer, "t")
+	analysistest.Run(t, testdata, NewAnalyzer(), "t")
 }
 
-func TestIgnoreMissing(t *testing.T) {
+func TestIgnoreMissingOption(t *testing.T) {
 	t.Parallel()
 
 	wd, err := os.Getwd()
@@ -29,12 +28,24 @@ func TestIgnoreMissing(t *testing.T) {
 		t.Fatalf("Failed to get wd: %s", err)
 	}
 
-	options := flag.NewFlagSet("", flag.ExitOnError)
-	options.Bool("i", true, "")
-
-	analyzer := *Analyzer
-	analyzer.Flags = *options
+	a := newParallelAnalyzer()
+	a.ignoreMissing = true
 
 	testdata := filepath.Join(filepath.Dir(wd), "paralleltest", "testdata")
-	analysistest.Run(t, testdata, &analyzer, "i")
+	analysistest.Run(t, testdata, a.analyzer, "i")
+}
+
+func TestIgnoreMissingSubtestsOption(t *testing.T) {
+	t.Parallel()
+
+	wd, err := os.Getwd()
+	if err != nil {
+		t.Fatalf("Failed to get wd: %s", err)
+	}
+
+	a := newParallelAnalyzer()
+	a.ignoreMissingSubtests = true
+
+	testdata := filepath.Join(filepath.Dir(wd), "paralleltest", "testdata")
+	analysistest.Run(t, testdata, a.analyzer, "ignoremissingsubtests")
 }

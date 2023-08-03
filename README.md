@@ -10,7 +10,10 @@ The Go linter `paralleltest` checks that the t.Parallel gets called for the test
 paralleltest ./...
 ```
 
-To ignore missing calls to `t.Parallel` and only report incorrect uses of it, pass the flag `-i`.
+A few options can be activated by flag:
+
+* `-i`: Ignore missing calls to `t.Parallel` and only report incorrect uses of it.
+* `-ignoremissingsubtests`: Require that top-level tests specify `t.Parallel`, but don't require it in subtests (`t.Run(...)`).
 
 ## Examples
 

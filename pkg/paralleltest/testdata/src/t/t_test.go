@@ -142,6 +142,7 @@ type notATest int
 
 func (notATest) Run(args ...interface{}) {}
 func (notATest) Parallel()               {}
+func (notATest) Setenv(_, _ string)      {}
 
 func TestFunctionWithRunLookalike(t *testing.T) {
 	t.Parallel()
@@ -160,4 +161,59 @@ func TestFunctionWithParallelLookalike(t *testing.T) { // want "Function TestFun
 
 func TestFunctionWithOtherTestingVar(q *testing.T) {
 	q.Parallel()
+}
+
+func TestFunctionWithSetenv(t *testing.T) {
+	// unable to call t.Parallel with t.Setenv
+	t.Setenv("foo", "bar")
+}
+
+func TestFunctionWithSetenvLookalike(t *testing.T) { // want "Function TestFunctionWithSetenvLookalike missing the call to method parallel"
+	var other notATest
+	other.Setenv("foo", "bar")
+}
+
+func TestFunctionWithSetenvChild(t *testing.T) {
+	// ancestor of setenv cant call t.Parallel
+	t.Run("1", func(t *testing.T) {
+		// unable to call t.Parallel with t.Setenv
+		t.Setenv("foo", "bar")
+		fmt.Println("1")
+	})
+}
+
+func TestFunctionSetenvChildrenCanBeParallel(t *testing.T) {
+	// unable to call t.Parallel with t.Setenv
+	t.Setenv("foo", "bar")
+	t.Run("1", func(t *testing.T) { // want "Function TestFunctionSetenvChildrenCanBeParallel missing the call to method parallel in the test run"
+		fmt.Println("1")
+	})
+	t.Run("2", func(t *testing.T) { // want "Function TestFunctionSetenvChildrenCanBeParallel missing the call to method parallel in the test run"
+		fmt.Println("2")
+	})
+}
+
+func TestFunctionRunWithSetenvSibling(t *testing.T) {
+	// ancestor of setenv cant call t.Parallel
+	t.Run("1", func(t *testing.T) {
+		// unable to call t.Parallel with t.Setenv
+		t.Setenv("foo", "bar")
+		fmt.Println("1")
+	})
+	t.Run("2", func(t *testing.T) { // want "Function TestFunctionRunWithSetenvSibling missing the call to method parallel in the test run"
+		fmt.Println("2")
+	})
+}
+
+func TestFunctionWithSetenvRange(t *testing.T) {
+	// ancestor of setenv cant call t.Parallel
+	testCases := []struct {
+		name string
+	}{{name: "foo"}}
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) {
+			// unable to call t.Parallel with t.Setenv
+			t.Setenv("foo", "bar")
+		})
+	}
 }

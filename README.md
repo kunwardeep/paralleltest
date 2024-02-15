@@ -14,6 +14,7 @@ A few options can be activated by flag:
 
 * `-i`: Ignore missing calls to `t.Parallel` and only report incorrect uses of it.
 * `-ignoremissingsubtests`: Require that top-level tests specify `t.Parallel`, but don't require it in subtests (`t.Run(...)`).
+* `-ignoreloopVar`: Ignore loop variable detection.
 
 ## Examples
 

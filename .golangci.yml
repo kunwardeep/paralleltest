@@ -1,16 +1,20 @@
 linters:
+  disable:
+    # Remove deprecated linters
+    - deadcode # deprecated: replaced by 'unused'
+    - structcheck # deprecated: replaced by 'unused'
+    - varcheck # deprecated: replaced by 'unused'
+    - golint # deprecated: replaced by 'revive'
+
   enable:
     # Default linters
-    - deadcode
     - errcheck
     - gosimple
     - govet
     - ineffassign
     - staticcheck
-    - structcheck
     - typecheck
     - unused
-    - varcheck
 
     # Optional ones we want to include
     - gochecknoglobals

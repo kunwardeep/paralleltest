@@ -217,3 +217,57 @@ func TestFunctionWithSetenvRange(t *testing.T) {
 		})
 	}
 }
+
+// Test cases for paralleltest package edge cases
+func TestParalleltestEdgeCases(t *testing.T) {
+	t.Parallel()
+
+	t.Run("edge_cases", func(t *testing.T) {
+		t.Parallel()
+
+		// Test nil test case
+		t.Run("nil_test", func(t *testing.T) {
+			t.Parallel()
+			// Test handling of nil test case
+			func() {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Error("Expected panic for nil test case")
+					}
+				}()
+				var nilTest *testing.T
+				nilTest.Parallel()
+			}()
+		})
+
+		// Test empty test case
+		t.Run("empty_test", func(t *testing.T) {
+			t.Parallel()
+			// Test handling of empty test case
+			func() {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Error("Expected panic for empty test case")
+					}
+				}()
+				var emptyTest testing.T
+				emptyTest.Parallel()
+			}()
+		})
+
+		// Test invalid test case
+		t.Run("invalid_test", func(t *testing.T) {
+			t.Parallel()
+			// Test handling of invalid test case
+			func() {
+				defer func() {
+					if r := recover(); r == nil {
+						t.Error("Expected panic for invalid test case")
+					}
+				}()
+				var invalidTest interface{}
+				invalidTest.(*testing.T).Parallel()
+			}()
+		})
+	})
+}

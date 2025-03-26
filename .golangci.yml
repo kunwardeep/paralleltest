@@ -1,10 +1,10 @@
 linters:
   disable:
-    # Remove deprecated linters
-    - deadcode # deprecated: replaced by 'unused'
-    - structcheck # deprecated: replaced by 'unused'
-    - varcheck # deprecated: replaced by 'unused'
-    - golint # deprecated: replaced by 'revive'
+    # Removed deprecated linters
+    # - deadcode
+    # - structcheck
+    # - varcheck
+    # - golint
 
   enable:
     # Default linters
@@ -22,7 +22,7 @@ linters:
     - goconst
     - gocritic
     - goimports
-    - golint
+    - revive
     - gosec
     - misspell
     - nakedret
@@ -37,7 +37,7 @@ linters-settings:
     ignore-words:
 
   govet:
-    check-shadowing: true
+    shadow: true
 
 output:
-  format: colored-line-number
+  formats: colored-line-number

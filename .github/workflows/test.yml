@@ -12,26 +12,29 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
-      - name: Setup Golang
-        uses: actions/setup-go@v3
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
         with:
           go-version: stable
       - name: Get dependencies
-        run: go get -v -t -d ./...
+        run: make ensure_deps
       - name: Build
-        run: go build -v
+        run: make build
       - name: Test
-        run: go test -v -race ./...
+        run: make test
 
   lint:
     name: Lint
     runs-on: ubuntu-latest
     steps:
       - name: Checkout source
-        uses: actions/checkout@v3
+        uses: actions/checkout@v4
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version: stable
       - name: golangci-lint
-        uses: golangci/golangci-lint-action@v3
+        uses: golangci/golangci-lint-action@v7
         with:
           version: latest
-          args: --timeout=5m

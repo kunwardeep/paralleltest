@@ -1,24 +1,15 @@
-export GOSUMDB := off
-export GOFLAGS := -v -mod=vendor
 GOLANGCI_VERSION := latest
 
 default: build
 
 build:
-	go build "$(MAIN_PKG)"
+	go build -v .
 
 ensure_deps:
 	go mod tidy
-	go mod vendor
-	cd tools  && go mod tidy
-	cd tools && go mod vendor
 
-# GOFLAGS=-mod=mod: This ensures Go resolves dependencies via the go.mod file
 install_devtools:
-	GOFLAGS=-mod=mod go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_VERSION)
-
-clean:
-	go clean $(MAIN_PKG)
+	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_VERSION)
 
 lint:
 	golangci-lint run ./...

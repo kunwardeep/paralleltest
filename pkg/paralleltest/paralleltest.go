@@ -222,6 +222,10 @@ func (a *parallelAnalyzer) run(pass *analysis.Pass) (interface{}, error) {
 
 	inspector.Preorder(nodeFilter, func(node ast.Node) {
 		funcDecl := node.(*ast.FuncDecl)
+		// Only process _test.go files
+		if !strings.HasSuffix(pass.Fset.File(funcDecl.Pos()).Name(), "_test.go") {
+			return
+		}
 		a.analyzeTestFunction(pass, funcDecl)
 	})
 

@@ -10,8 +10,6 @@ build:
 ensure_deps:
 	go mod tidy
 	go mod vendor
-	cd tools  && go mod tidy
-	cd tools && go mod vendor
 
 # GOFLAGS=-mod=mod: This ensures Go resolves dependencies via the go.mod file
 install_devtools:

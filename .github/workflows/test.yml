@@ -13,7 +13,7 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v4
-      - name: Setup Golang
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: stable
@@ -30,7 +30,7 @@ jobs:
     steps:
       - name: Checkout source
         uses: actions/checkout@v3
-      - name: Setup Golang
+      - name: Setup Go
         uses: actions/setup-go@v5
         with:
           go-version: stable

@@ -1,22 +1,15 @@
 GOLANGCI_VERSION := latest
-MAIN_PKG=.
 
 default: build
 
 build:
-	GOSUMDB=off
-	go build -v -mod=vendor "$(MAIN_PKG)"
+	go build -v .
 
 ensure_deps:
-	GOSUMDB=off
 	go mod tidy
-	go mod vendor
 
 install_devtools:
 	go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_VERSION)
-
-clean:
-	go clean $(MAIN_PKG)
 
 lint:
 	golangci-lint run ./...

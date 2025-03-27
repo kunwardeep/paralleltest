@@ -1,13 +1,14 @@
-export GOSUMDB := off
-export GOFLAGS := -v -mod=vendor
 GOLANGCI_VERSION := latest
+MAIN_PKG=.
 
 default: build
 
 build:
-	go build "$(MAIN_PKG)"
+	GOSUMDB=off
+	go build -v -mod=vendor "$(MAIN_PKG)"
 
 ensure_deps:
+	GOSUMDB=off
 	go mod tidy
 	go mod vendor
 

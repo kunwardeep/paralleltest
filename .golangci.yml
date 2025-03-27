@@ -1,5 +1,5 @@
 linters:
-  disable:
+  # disable:
     # Removed deprecated linters
     # - deadcode
     # - structcheck
@@ -33,11 +33,9 @@ linters-settings:
   goimports:
     local-prefixes: github.com/kunwardeep/paralleltest
   misspell:
-    local: US
-    ignore-words:
+    locale: US
 
   govet:
-    shadow: true
+    enable:
+      - shadow
 
-output:
-  formats: colored-line-number

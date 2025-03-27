@@ -15,7 +15,7 @@ ensure_deps:
 
 # GOFLAGS=-mod=mod: This ensures Go resolves dependencies via the go.mod file
 install_devtools:
-	GOFLAGS=-mod=mod go install github.com/golangci/golangci-lint/cmd/golangci-lint@$(GOLANGCI_VERSION)
+	GOFLAGS=-mod=mod go install github.com/golangci/golangci-lint/v2/cmd/golangci-lint@$(GOLANGCI_VERSION)
 
 clean:
 	go clean $(MAIN_PKG)

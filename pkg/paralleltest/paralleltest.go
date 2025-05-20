@@ -73,8 +73,9 @@ func (a *parallelAnalyzer) analyzeTestRun(pass *analysis.Pass, n ast.Node, testV
 		analysis.numberOfTestRun++
 
 		if callExpr, ok := n.(*ast.CallExpr); ok && len(callExpr.Args) > 1 {
-			if funcLit, ok := callExpr.Args[1].(*ast.FuncLit); ok {
-				ast.Inspect(funcLit, func(p ast.Node) bool {
+			switch arg := callExpr.Args[1].(type) {
+			case *ast.FuncLit:
+				ast.Inspect(arg, func(p ast.Node) bool {
 					if !analysis.hasParallel {
 						analysis.hasParallel = methodParallelIsCalledInTestFunction(p, innerTestVar)
 					}
@@ -83,11 +84,11 @@ func (a *parallelAnalyzer) analyzeTestRun(pass *analysis.Pass, n ast.Node, testV
 					}
 					return true
 				})
-			} else if ident, ok := callExpr.Args[1].(*ast.Ident); ok {
+			case *ast.Ident:
 				foundFunc := false
 				for _, file := range pass.Files {
 					for _, decl := range file.Decls {
-						if funcDecl, ok := decl.(*ast.FuncDecl); ok && funcDecl.Name.Name == ident.Name {
+						if funcDecl, ok := decl.(*ast.FuncDecl); ok && funcDecl.Name.Name == arg.Name {
 							foundFunc = true
 							isReceivingTestContext, testParamName := isFunctionReceivingTestContext(funcDecl)
 							if isReceivingTestContext {
@@ -104,6 +105,8 @@ func (a *parallelAnalyzer) analyzeTestRun(pass *analysis.Pass, n ast.Node, testV
 				if !foundFunc {
 					analysis.hasParallel = false
 				}
+			case *ast.CallExpr:
+				analysis.hasParallel = true
 			}
 		}
 

@@ -317,7 +317,7 @@ func TestRangeHelperWithDifferentParamNames(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			t.Run("sub1", rangeHelperWithCustomParam) // want "Function TestRangeHelperWithDifferentParamNames missing the call to method parallel in the test run"
+			t.Run("sub1", rangeHelperWithCustomParam)  // want "Function TestRangeHelperWithDifferentParamNames missing the call to method parallel in the test run"
 			t.Run("sub2", rangeHelperWithAnotherParam) // want "Function TestRangeHelperWithDifferentParamNames missing the call to method parallel in the test run"
 		})
 	}
@@ -329,4 +329,58 @@ func rangeHelperWithCustomParam(testT *testing.T) {
 
 func rangeHelperWithAnotherParam(t *testing.T) {
 	fmt.Println("range another")
+}
+
+// Issue https://github.com/kunwardeep/paralleltest/issues/50
+func TestBuilder(t *testing.T) {
+	t.Parallel()
+	t.Run("1", testBuilderWithParallel())
+	t.Run("2", testBuilderNoParallel())
+	t.Run("3", testBuilderWithTestCallback(func(t *testing.T) {
+		fmt.Println("test")
+	}))
+	t.Run("4", testBuilderWithAnotherCallback(func(t string) {
+		fmt.Println("test")
+	}))
+}
+
+func testBuilderWithParallel() func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Parallel()
+		fmt.Println("test")
+	}
+}
+
+func testBuilderNoParallel() func(t *testing.T) {
+	return func(t *testing.T) {
+		fmt.Println("test")
+	}
+}
+
+func testBuilderWithTestCallback(fn func(t *testing.T)) func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Parallel()
+		t.Run("sub1", func(t *testing.T) {
+			t.Parallel()
+			fn(t)
+		})
+		t.Run("sub2", func(t *testing.T) {
+			t.Parallel()
+			fn(t)
+		})
+	}
+}
+
+func testBuilderWithAnotherCallback(fn func(t string)) func(t *testing.T) {
+	return func(t *testing.T) {
+		t.Parallel()
+		t.Run("sub1", func(t *testing.T) {
+			t.Parallel()
+			fn(t.Name())
+		})
+		t.Run("sub2", func(t *testing.T) {
+			t.Parallel()
+			fn(t.Name())
+		})
+	}
 }

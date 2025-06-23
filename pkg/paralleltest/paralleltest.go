@@ -106,7 +106,9 @@ func (a *parallelAnalyzer) analyzeTestRun(pass *analysis.Pass, n ast.Node, testV
 					analysis.hasParallel = false
 				}
 			case *ast.CallExpr:
-				analysis.hasParallel = true
+				if methodParallelIsCalledInTestFunction(arg, innerTestVar) {
+					analysis.hasParallel = true
+				}
 			}
 		}
 

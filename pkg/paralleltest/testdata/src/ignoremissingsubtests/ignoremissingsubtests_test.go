@@ -81,7 +81,7 @@ func TestFunctionRangeNotUsingRangeValueInTDotRun(t *testing.T) {
 	testCases := []struct {
 		name string
 	}{{name: "foo"}}
-	for _, tc := range testCases { // want "Range statement for test TestFunctionRangeNotUsingRangeValueInTDotRun does not reinitialise the variable tc"
+	for _, tc := range testCases {
 		t.Run("tc.name", func(t *testing.T) {
 			t.Parallel()
 			fmt.Println(tc.name)
@@ -95,7 +95,7 @@ func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
 	testCases := []struct {
 		name string
 	}{{name: "foo"}}
-	for _, tc := range testCases { // want "Range statement for test TestFunctionRangeNotReInitialisingVariable does not reinitialise the variable tc"
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			fmt.Println(tc.name)

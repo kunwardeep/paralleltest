@@ -52,13 +52,13 @@ func TestFunctionRangeMissingCallToParallel(t *testing.T) {
 		name string
 	}{{name: "foo"}}
 
-	// this range loop should be okay as it does not have test Run
+	// this range loop should be okay as it does not have t.Run
 	for _, tc := range testCases {
 		fmt.Println(tc.name)
 	}
 
-	for _, tc := range testCases { // want "Range statement for test TestFunctionRangeMissingCallToParallel missing the call to method parallel in test Run"
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) { // want "Function literal missing the call to method parallel in the t.Run\n"
 			fmt.Println(tc.name)
 		})
 	}
@@ -69,8 +69,8 @@ func TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun(t *tes
 		name string
 	}{{name: "foo"}}
 
-	for _, tc := range testCases { // want "Range statement for test TestFunctionMissingCallToParallelAndRangeNotUsingRangeValueInTDotRun missing the call to method parallel in test Run"
-		t.Run(tc.name, func(t *testing.T) {
+	for _, tc := range testCases {
+		t.Run(tc.name, func(t *testing.T) { // want "Function literal missing the call to method parallel in the t.Run\n"
 			fmt.Println(tc.name)
 		})
 	}
@@ -81,7 +81,7 @@ func TestFunctionRangeNotUsingRangeValueInTDotRun(t *testing.T) {
 	testCases := []struct {
 		name string
 	}{{name: "foo"}}
-	for _, tc := range testCases { // want "Range statement for test TestFunctionRangeNotUsingRangeValueInTDotRun does not reinitialise the variable tc"
+	for _, tc := range testCases {
 		t.Run("tc.name", func(t *testing.T) {
 			t.Parallel()
 			fmt.Println(tc.name)
@@ -94,7 +94,7 @@ func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
 	testCases := []struct {
 		name string
 	}{{name: "foo"}}
-	for _, tc := range testCases { // want "Range statement for test TestFunctionRangeNotReInitialisingVariable does not reinitialise the variable tc"
+	for _, tc := range testCases {
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
 			fmt.Println(tc.name)
@@ -102,20 +102,20 @@ func TestFunctionRangeNotReInitialisingVariable(t *testing.T) {
 	}
 }
 
-// Multiple test run cases
+// Multiple t.Run cases
 func TestFunctionTwoTestRunMissingCallToParallel(t *testing.T) {
 	t.Parallel()
-	t.Run("1", func(t *testing.T) { // want "Function TestFunctionTwoTestRunMissingCallToParallel missing the call to method parallel in the test run"
+	t.Run("1", func(t *testing.T) { // want "Function literal missing the call to method parallel in the t.Run\n"
 		fmt.Println("1")
 	})
-	t.Run("2", func(t *testing.T) { // want "Function TestFunctionTwoTestRunMissingCallToParallel missing the call to method parallel in the test run"
+	t.Run("2", func(t *testing.T) { // want "Function literal missing the call to method parallel in the t.Run\n"
 		fmt.Println("2")
 	})
 }
 
 func TestFunctionFirstOneTestRunMissingCallToParallel(t *testing.T) {
 	t.Parallel()
-	t.Run("1", func(t *testing.T) { // want "Function TestFunctionFirstOneTestRunMissingCallToParallel missing the call to method parallel in the test run"
+	t.Run("1", func(t *testing.T) { // want "Function literal missing the call to method parallel in the t.Run\n"
 		fmt.Println("1")
 	})
 	t.Run("2", func(t *testing.T) {
@@ -130,7 +130,7 @@ func TestFunctionSecondOneTestRunMissingCallToParallel(t *testing.T) {
 		x.Parallel()
 		fmt.Println("1")
 	})
-	t.Run("2", func(t *testing.T) { // want "Function TestFunctionSecondOneTestRunMissingCallToParallel missing the call to method parallel in the test run"
+	t.Run("2", func(t *testing.T) { // want "Function literal missing the call to method parallel in the t.Run\n"
 		fmt.Println("2")
 	})
 }
@@ -141,6 +141,7 @@ type notATest int
 func (notATest) Run(args ...interface{}) {}
 func (notATest) Parallel()               {}
 func (notATest) Setenv(_, _ string)      {}
+func (notATest) Chdir(_ string)          {}
 
 func TestFunctionWithRunLookalike(t *testing.T) {
 	t.Parallel()
@@ -159,62 +160,6 @@ func TestFunctionWithParallelLookalike(t *testing.T) { // want "Function TestFun
 // Test cases with different parameter names
 func TestFunctionWithOtherTestingVar(q *testing.T) {
 	q.Parallel()
-}
-
-// Setenv-related test cases
-func TestFunctionWithSetenv(t *testing.T) {
-	// unable to call t.Parallel with t.Setenv
-	t.Setenv("foo", "bar")
-}
-
-func TestFunctionWithSetenvLookalike(t *testing.T) { // want "Function TestFunctionWithSetenvLookalike missing the call to method parallel"
-	var other notATest
-	other.Setenv("foo", "bar")
-}
-
-func TestFunctionWithSetenvChild(t *testing.T) {
-	// ancestor of setenv cant call t.Parallel
-	t.Run("1", func(t *testing.T) {
-		// unable to call t.Parallel with t.Setenv
-		t.Setenv("foo", "bar")
-		fmt.Println("1")
-	})
-}
-
-func TestFunctionSetenvChildrenCanBeParallel(t *testing.T) {
-	// unable to call t.Parallel with t.Setenv
-	t.Setenv("foo", "bar")
-	t.Run("1", func(t *testing.T) { // want "Function TestFunctionSetenvChildrenCanBeParallel missing the call to method parallel in the test run"
-		fmt.Println("1")
-	})
-	t.Run("2", func(t *testing.T) { // want "Function TestFunctionSetenvChildrenCanBeParallel missing the call to method parallel in the test run"
-		fmt.Println("2")
-	})
-}
-
-func TestFunctionRunWithSetenvSibling(t *testing.T) {
-	// ancestor of setenv cant call t.Parallel
-	t.Run("1", func(t *testing.T) {
-		// unable to call t.Parallel with t.Setenv
-		t.Setenv("foo", "bar")
-		fmt.Println("1")
-	})
-	t.Run("2", func(t *testing.T) { // want "Function TestFunctionRunWithSetenvSibling missing the call to method parallel in the test run"
-		fmt.Println("2")
-	})
-}
-
-func TestFunctionWithSetenvRange(t *testing.T) {
-	// ancestor of setenv cant call t.Parallel
-	testCases := []struct {
-		name string
-	}{{name: "foo"}}
-	for _, tc := range testCases {
-		t.Run(tc.name, func(t *testing.T) {
-			// unable to call t.Parallel with t.Setenv
-			t.Setenv("foo", "bar")
-		})
-	}
 }
 
 // Edge cases and error handling
@@ -273,7 +218,7 @@ func TestParalleltestEdgeCases(t *testing.T) {
 // Helper function test cases
 func TestFunctionCallToParallelWhereTestContextIsAFunction(t *testing.T) {
 	t.Parallel()
-	t.Run("1", foo) // want "Function TestFunctionCallToParallelWhereTestContextIsAFunction missing the call to method parallel in the test run"
+	t.Run("1", foo) // want "Function foo missing the call to method parallel in the t.Run\n"
 	t.Run("2", bar)
 }
 
@@ -286,13 +231,13 @@ func bar(t *testing.T) {
 	fmt.Println("2")
 }
 
-// Nested test run cases with helper functions
-func TestNestedTestRunsWithHelpers(t *testing.T) {
+// Nested t.Run cases with helper functions
+func TestNestedTestRunsWithHelpers(t *testing.T) { //
 	t.Parallel()
 	t.Run("outer", func(t *testing.T) {
 		t.Parallel()
-		t.Run("inner1", nestedHelper1) // want "Function TestNestedTestRunsWithHelpers missing the call to method parallel in the test run"
-		t.Run("inner2", nestedHelper2) // want "Function TestNestedTestRunsWithHelpers missing the call to method parallel in the test run"
+		t.Run("inner1", nestedHelper1) // want "Function nestedHelper1 missing the call to method parallel in the t.Run\n"
+		t.Run("inner2", nestedHelper2) // want "Function nestedHelper2 missing the call to method parallel in the t.Run\n"
 	})
 }
 
@@ -317,8 +262,8 @@ func TestRangeHelperWithDifferentParamNames(t *testing.T) {
 		tc := tc
 		t.Run(tc.name, func(t *testing.T) {
 			t.Parallel()
-			t.Run("sub1", rangeHelperWithCustomParam)  // want "Function TestRangeHelperWithDifferentParamNames missing the call to method parallel in the test run"
-			t.Run("sub2", rangeHelperWithAnotherParam) // want "Function TestRangeHelperWithDifferentParamNames missing the call to method parallel in the test run"
+			t.Run("sub1", rangeHelperWithCustomParam)  // want "Function rangeHelperWithCustomParam missing the call to method parallel in the t.Run\n"
+			t.Run("sub2", rangeHelperWithAnotherParam) // want "Function rangeHelperWithAnotherParam missing the call to method parallel in the t.Run\n"
 		})
 	}
 }
@@ -347,12 +292,21 @@ func builderWithParallel() func(t *testing.T) {
 
 func TestBuilderFunctionMissingParallel(t *testing.T) {
 	t.Parallel()
-	t.Run("1", builderWithoutParallel()) // want "Function TestBuilderFunctionMissingParallel missing the call to method parallel in the test run"
-	t.Run("2", builderWithoutParallel()) // want "Function TestBuilderFunctionMissingParallel missing the call to method parallel in the test run"
+	t.Run("1", builderWithoutParallel()) // want "Function builderWithoutParallel missing the call to method parallel in the t.Run\n"
+	t.Run("2", builderWithoutParallel()) // want "Function builderWithoutParallel missing the call to method parallel in the t.Run\n"
 }
 
 func builderWithoutParallel() func(t *testing.T) {
 	return func(t *testing.T) {
 		fmt.Println("test from builder without parallel")
 	}
+}
+
+func nestedParallel(t *testing.T) *testing.T {
+	t.Parallel()
+	return t
+}
+
+func TestNestedFunctionWithParallel(t *testing.T) {
+	nestedHelper1(nestedParallel(t))
 }

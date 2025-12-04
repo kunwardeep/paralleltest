@@ -63,13 +63,12 @@ func TestWithSetenvAndDefer(t *testing.T) {
 	fmt.Println("test")
 }
 
-// Test with multiple defers and parallel
-func TestWithMultipleDefersAndParallel(t *testing.T) {
+func TestWithMultipleDefersAndParallelButNoSubtests(t *testing.T) {
 	t.Parallel()
 
-	defer fmt.Println("cleanup 1") // want "Function TestWithMultipleDefersAndParallel uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete"
-	defer fmt.Println("cleanup 2") // want "Function TestWithMultipleDefersAndParallel uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete"
-	defer fmt.Println("cleanup 3") // want "Function TestWithMultipleDefersAndParallel uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete"
+	defer fmt.Println("cleanup 1")
+	defer fmt.Println("cleanup 2")
+	defer fmt.Println("cleanup 3")
 
 	fmt.Println("test")
 }
@@ -79,7 +78,7 @@ func TestDemonstratingProblem(t *testing.T) {
 	t.Parallel()
 
 	counter := 0
-	defer func() { // want "Function TestDemonstratingProblem uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete"
+	defer func() { // want "Function TestDemonstratingProblem uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete\n"
 		// This runs immediately when the test function returns,
 		// BEFORE subtests complete!
 		fmt.Printf("Counter value in defer: %d\n", counter)
@@ -117,4 +116,28 @@ func TestCorrectUsageWithCleanup(t *testing.T) {
 		counter++
 	})
 	// t.Cleanup runs after all subtests finish
+}
+
+func TestNestedDefer(t *testing.T) {
+	t.Parallel()
+	t.Run("1", func(t *testing.T) {
+		t.Parallel()
+		defer fmt.Println("cleanup 1") // want "Function literal uses defer with t.Parallel, use t.Cleanup instead to ensure cleanup runs after parallel subtests complete\n"
+		t.Run("2", func(t *testing.T) {
+			t.Parallel()
+			defer fmt.Println("cleanup 2") // okay if there's no nesting.
+		})
+	})
+}
+
+func helperDefer(t *testing.T) {
+	defer fmt.Println("cleanup 2")
+}
+
+func TestDeferOkayInHelper(t *testing.T) {
+	t.Parallel()
+	helperDefer(t)
+	t.Run("1", func(t *testing.T) {
+		t.Parallel()
+	})
 }

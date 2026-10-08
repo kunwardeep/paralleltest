@@ -7,7 +7,6 @@ import (
 	"strings"
 
 	"golang.org/x/tools/go/analysis"
-	"golang.org/x/tools/go/ast/inspector"
 )
 
 const Doc = `check that tests use t.Parallel() method
@@ -18,6 +17,11 @@ With the -checkcleanup flag, it also checks that defer is not used with t.Parall
 
 func NewAnalyzer() *analysis.Analyzer {
 	return newParallelAnalyzer().analyzer
+}
+
+type funcInfo struct {
+	decl *ast.FuncDecl
+	file *ast.File
 }
 
 // parallelAnalyzer is an internal analyzer that makes options available to a
@@ -124,7 +128,11 @@ func (a *parallelAnalyzer) analyzeTestRun(pass *analysis.Pass, n ast.Node, testV
 	return analysis
 }
 
-func (a *parallelAnalyzer) analyzeTestFunction(pass *analysis.Pass, funcDecl *ast.FuncDecl) {
+func (a *parallelAnalyzer) analyzeTestFunction(
+	pass *analysis.Pass,
+	funcDecls map[string]funcInfo,
+	funcDecl *ast.FuncDecl,
+) {
 	var analysis testFunctionAnalysis
 
 	// Check runs for test functions only
@@ -203,6 +211,45 @@ func (a *parallelAnalyzer) analyzeTestFunction(pass *analysis.Pass, funcDecl *as
 
 	if analysis.rangeStatementCantParallelMethod {
 		analysis.funcCantParallelMethod = true
+	}
+
+	// Don't have to check helpers if it's marked inside the body
+	if !analysis.funcHasParallelMethod && !analysis.funcCantParallelMethod {
+		ast.Inspect(funcDecl.Body, func(n ast.Node) bool {
+			call, ok := n.(*ast.CallExpr)
+			// Check if it is a function call
+			if !ok {
+				return true
+			}
+
+			// Get function identifier
+			ident, ok := call.Fun.(*ast.Ident)
+			if !ok {
+				return true
+			}
+
+			// Find the function in funcDecls cache
+			// handle only present & not exported function.
+			info, exists := funcDecls[ident.Name]
+			if !exists || ast.IsExported(ident.Name) {
+				return true
+			}
+
+			// Check if the function has testing.T as param and get param name
+			isReceivingTestContext, helperParamName := isFunctionReceivingTestContext(info.decl)
+			if !isReceivingTestContext {
+				return true
+			}
+
+			// Check helper for t.Parallel call
+			visited := make(map[string]bool)
+			if a.hasParallelInHelpers(funcDecls, info.decl, helperParamName, visited) {
+				analysis.funcHasParallelMethod = true
+				return false
+			}
+
+			return true
+		})
 	}
 
 	if !a.ignoreMissing && !analysis.funcHasParallelMethod && !analysis.funcCantParallelMethod {
@@ -311,21 +358,28 @@ func (a *parallelAnalyzer) checkBuilderFunctionForParallel(pass *analysis.Pass, 
 	return false
 }
 
-func (a *parallelAnalyzer) run(pass *analysis.Pass) (interface{}, error) {
-	inspector := inspector.New(pass.Files)
+func (a *parallelAnalyzer) run(pass *analysis.Pass) (any, error) {
+	funcDecls := map[string]funcInfo{}
 
-	nodeFilter := []ast.Node{
-		(*ast.FuncDecl)(nil),
+	// Collect all function declarations from test files
+	for _, file := range pass.Files {
+		if !strings.HasSuffix(pass.Fset.File(file.Pos()).Name(), "_test.go") {
+			continue
+		}
+		for _, decl := range file.Decls {
+			if funcDecl, ok := decl.(*ast.FuncDecl); ok {
+				funcDecls[funcDecl.Name.Name] = funcInfo{decl: funcDecl, file: file}
+			}
+		}
 	}
 
-	inspector.Preorder(nodeFilter, func(node ast.Node) {
-		funcDecl := node.(*ast.FuncDecl)
-		// Only process _test.go files
-		if !strings.HasSuffix(pass.Fset.File(funcDecl.Pos()).Name(), "_test.go") {
-			return
+	// Analyze test functions
+	for _, info := range funcDecls {
+		// Only analyze test functions
+		if isTest, _ := isTestFunction(info.decl); isTest {
+			a.analyzeTestFunction(pass, funcDecls, info.decl)
 		}
-		a.analyzeTestFunction(pass, funcDecl)
-	})
+	}
 
 	return nil, nil
 }
@@ -498,4 +552,59 @@ func loopVarReferencedInRun(call *ast.CallExpr, vars []types.Object, typeInfo *t
 	})
 
 	return
+}
+
+// hasParallelInHelpers recursively checks if a function or its unexported helpers call t.Parallel
+func (a *parallelAnalyzer) hasParallelInHelpers(
+	funcDecls map[string]funcInfo,
+	funcDecl *ast.FuncDecl,
+	paramName string,
+	visited map[string]bool,
+) bool {
+	// Prevent infinite recursion in helper chains by tracking visited functions
+	if visited[funcDecl.Name.Name] {
+		return false
+	}
+
+	visited[funcDecl.Name.Name] = true
+	defer func() { delete(visited, funcDecl.Name.Name) }()
+
+	for _, stmt := range funcDecl.Body.List {
+		s, ok := stmt.(*ast.ExprStmt)
+		if !ok {
+			continue
+		}
+
+		call, ok := s.X.(*ast.CallExpr)
+		if !ok {
+			continue
+		}
+
+		// Check for direct t.Parallel
+		if methodParallelIsCalledInTestFunction(call, paramName) {
+			return true
+		}
+
+		// Check for calls to unexported helpers
+		ident, ok := call.Fun.(*ast.Ident)
+		if !ok {
+			continue
+		}
+		info, exists := funcDecls[ident.Name]
+		if !exists || ast.IsExported(ident.Name) {
+			continue
+		}
+		isReceivingTestContext, helperParamName := isFunctionReceivingTestContext(info.decl)
+		if !isReceivingTestContext {
+			continue
+		}
+
+		// Call the function recursively, process next depth
+		if !a.hasParallelInHelpers(funcDecls, info.decl, helperParamName, visited) {
+			continue
+		}
+
+		return true
+	}
+	return false
 }

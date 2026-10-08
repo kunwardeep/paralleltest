@@ -356,3 +356,96 @@ func builderWithoutParallel() func(t *testing.T) {
 		fmt.Println("test from builder without parallel")
 	}
 }
+
+func TestUsingHelper(t *testing.T) {
+	testHelperWithParallel(t)
+}
+
+func testHelperWithParallel(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+}
+
+func TestUsingHelperWithoutHelper(t *testing.T) {
+	testHelperWithoutHelper(t)
+}
+
+func testHelperWithoutHelper(t *testing.T) {
+	t.Parallel()
+}
+
+func TestUsingHelperWithoutParallel(t *testing.T) { // want "Function TestUsingHelperWithoutParallel missing the call to method parallel"
+	testHelperWithoutParallel(t)
+}
+
+func testHelperWithoutParallel(t *testing.T) {
+	t.Helper()
+}
+
+// Test case for issue #56: handle t.Parallel in fixtures
+func TestFixtureWithParallel(t *testing.T) {
+	newSUT(t)
+}
+
+func newSUT(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+}
+
+// Test case for nested helpers
+func TestNestedHelpersWithParallel(t *testing.T) {
+	outerHelper(t)
+}
+
+func outerHelper(t *testing.T) {
+	t.Helper()
+	innerHelper(t)
+}
+
+func innerHelper(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+}
+
+// Test case for helper without parallel (should still flag)
+func TestFixtureWithoutParallel(t *testing.T) { // want "Function TestFixtureWithoutParallel missing the call to method parallel"
+	newSUTWithoutParallel(t)
+}
+
+func newSUTWithoutParallel(t *testing.T) {
+	t.Helper()
+}
+
+// Test calling helper from different file
+func TestCrossFileHelper(t *testing.T) {
+	crossFileHelper(t)
+}
+
+func TestRecursiveHelpersWithoutParallel(t *testing.T) { // want "Function TestRecursiveHelpersWithoutParallel missing the call to method parallel"
+	recursiveHelper1(t)
+}
+
+func recursiveHelper1(t *testing.T) {
+	t.Helper()
+	recursiveHelper2(t)
+}
+
+func recursiveHelper2(t *testing.T) {
+	t.Helper()
+	recursiveHelper1(t)
+}
+
+func TestRecursiveHelpersWithParallel(t *testing.T) {
+	recursiveHelper1Parallel(t)
+}
+
+func recursiveHelper1Parallel(t *testing.T) {
+	t.Helper()
+	recursiveHelper2Parallel(t)
+}
+
+func recursiveHelper2Parallel(t *testing.T) {
+	t.Helper()
+	t.Parallel()
+	recursiveHelper1Parallel(t)
+}
